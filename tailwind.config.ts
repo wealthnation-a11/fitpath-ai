@@ -61,6 +61,11 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				fitpath: {
+					blue: '#1EAEDB',
+					green: '#39FF14',
+					gray: '#F1F1F1'
 				}
 			},
 			borderRadius: {
