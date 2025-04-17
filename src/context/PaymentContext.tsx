@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { PAYSTACK_PUBLIC_KEY } from "@/utils/env";
+import { toast } from "sonner";
 
 export type SubscriptionPlan = {
   id: string;
@@ -82,28 +83,48 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       // Using the public key on the frontend and the secret key on the backend
       const paystackPublicKey = PAYSTACK_PUBLIC_KEY;
       
-      // Normally, we would make an API call to our backend to initialize the transaction
-      // The backend would use the secret key to create a transaction
-      // For this mock, we'll simulate the flow with the PaystackPop library
-      
-      // @ts-ignore - The PaystackPop is loaded via a script tag
-      if (!window.PaystackPop) {
-        throw new Error("Paystack not available. Please check your internet connection.");
+      // Check if Paystack is loaded
+      if (typeof window.PaystackPop === 'undefined') {
+        // Wait for Paystack to load (max 5 seconds)
+        await new Promise<void>((resolve, reject) => {
+          let attempts = 0;
+          const checkPaystack = setInterval(() => {
+            attempts++;
+            if (typeof window.PaystackPop !== 'undefined') {
+              clearInterval(checkPaystack);
+              resolve();
+            } else if (attempts >= 50) { // 5 seconds (100ms * 50)
+              clearInterval(checkPaystack);
+              reject(new Error("Paystack failed to load. Please refresh the page and try again."));
+            }
+          }, 100);
+        });
       }
       
-      // @ts-ignore
+      // Ensure Paystack is available
+      if (typeof window.PaystackPop === 'undefined') {
+        throw new Error("Paystack not available. Please check your internet connection and refresh the page.");
+      }
+      
+      // Generate a unique reference
+      const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      
+      // Initialize Paystack
       const handler = window.PaystackPop.setup({
         key: paystackPublicKey,
         email: user.email,
         amount: plan.amount, // in kobo
         currency: 'NGN',
-        ref: `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`,
+        ref: reference,
         callback: (response: any) => {
-          // This would normally call our backend to verify the transaction
+          console.log("Payment successful. Reference:", response.reference);
+          toast.success("Payment successful! Verifying your subscription...");
+          
+          // Verify payment
           verifyPayment(response.reference)
             .then((success) => {
               if (success) {
-                // Mock successful payment
+                // Update subscription
                 const expiryDate = new Date();
                 expiryDate.setDate(expiryDate.getDate() + plan.duration);
                 
@@ -115,18 +136,23 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 
                 setSubscription(newSubscription);
                 localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(newSubscription));
+                toast.success(`Subscription activated: ${plan.name}`);
+              } else {
+                toast.error("Payment verification failed. Please contact support.");
               }
             });
         },
         onClose: () => {
-          // Handle case when user closes payment modal
-          console.log("Payment window closed");
+          toast.info("Payment window closed");
+          setLoading(false);
         }
       });
       
       handler.openIframe();
     } catch (err: any) {
+      console.error("Payment error:", err);
       setError(err.message);
+      toast.error(err.message || "Payment failed. Please try again.");
       throw err;
     } finally {
       setLoading(false);

@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -19,11 +20,7 @@ import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
 import NotFound from "./pages/NotFound";
 
-// Add Paystack script
-const paystackScript = document.createElement("script");
-paystackScript.src = "https://js.paystack.co/v1/inline.js";
-paystackScript.async = true;
-document.head.appendChild(paystackScript);
+// Remove Paystack script loading from here as it's now handled in Layout component
 
 const queryClient = new QueryClient();
 
