@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -18,6 +19,9 @@ export default {
 			}
 		},
 		extend: {
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -63,15 +67,22 @@ export default {
 					ring: 'hsl(var(--sidebar-ring))'
 				},
 				fitpath: {
-					blue: '#1EAEDB',
-					green: '#39FF14',
-					gray: '#F1F1F1'
+					blue: '#007BFF',  // Electric Blue
+					green: '#39FF14', // Neon Green
+					gray: '#F4F4F4',  // Soft Light Gray
+					darkgray: '#333333', // Dark Gray Text
+					darkbg: '#111111', // Dark Background for Footer
 				}
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
 				md: 'calc(var(--radius) - 2px)',
-				sm: 'calc(var(--radius) - 4px)'
+				sm: 'calc(var(--radius) - 4px)',
+				'2xl': '1rem',
+			},
+			boxShadow: {
+				'soft': '0 4px 10px rgba(0, 0, 0, 0.05)',
+				'hover': '0 10px 15px rgba(0, 0, 0, 0.1)',
 			},
 			keyframes: {
 				'accordion-down': {
@@ -89,11 +100,22 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'fade-in': {
+					'0%': {
+						opacity: '0',
+						transform: 'translateY(10px)'
+					},
+					'100%': {
+						opacity: '1',
+						transform: 'translateY(0)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fade-in 0.3s ease-out'
 			}
 		}
 	},
