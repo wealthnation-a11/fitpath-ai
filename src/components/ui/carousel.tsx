@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import useEmblaCarousel, {
   type UseEmblaCarouselType,
@@ -17,6 +18,7 @@ type CarouselProps = {
   plugins?: CarouselPlugin
   orientation?: "horizontal" | "vertical"
   setApi?: (api: CarouselApi) => void
+  setActiveItem?: React.Dispatch<React.SetStateAction<number>>
 }
 
 type CarouselContextProps = {
@@ -26,6 +28,7 @@ type CarouselContextProps = {
   scrollNext: () => void
   canScrollPrev: boolean
   canScrollNext: boolean
+  setActiveItem?: React.Dispatch<React.SetStateAction<number>>
 } & CarouselProps
 
 const CarouselContext = React.createContext<CarouselContextProps | null>(null)
@@ -52,6 +55,7 @@ const Carousel = React.forwardRef<
       plugins,
       className,
       children,
+      setActiveItem,
       ...props
     },
     ref
@@ -71,9 +75,13 @@ const Carousel = React.forwardRef<
         return
       }
 
+      if (setActiveItem) {
+        setActiveItem(api.selectedScrollSnap());
+      }
+
       setCanScrollPrev(api.canScrollPrev())
       setCanScrollNext(api.canScrollNext())
-    }, [])
+    }, [setActiveItem])
 
     const scrollPrev = React.useCallback(() => {
       api?.scrollPrev()
@@ -130,6 +138,7 @@ const Carousel = React.forwardRef<
           scrollNext,
           canScrollPrev,
           canScrollNext,
+          setActiveItem,
         }}
       >
         <div

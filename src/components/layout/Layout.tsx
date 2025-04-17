@@ -12,11 +12,20 @@ const Layout = ({ children }: LayoutProps) => {
   // Ensure Paystack script is loaded
   useEffect(() => {
     const existingScript = document.getElementById("paystack-script");
-    if (!existingScript) {
+    if (!existingScript && !window.PaystackPop) {
       const script = document.createElement("script");
       script.src = "https://js.paystack.co/v1/inline.js";
       script.id = "paystack-script";
       script.async = true;
+      
+      script.onload = () => {
+        console.log("Paystack script loaded successfully");
+      };
+      
+      script.onerror = () => {
+        console.error("Failed to load Paystack script");
+      };
+      
       document.head.appendChild(script);
       
       return () => {

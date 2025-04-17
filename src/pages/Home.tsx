@@ -1,14 +1,22 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowRight, Check, Dumbbell, Brain, Calendar } from "lucide-react";
 import { SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { useEffect, useState } from "react";
 
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
     {
@@ -27,6 +35,40 @@ const Home = () => {
       icon: <Calendar className="h-12 w-12 text-fitpath-blue" />,
     },
   ];
+
+  const testimonials = [
+    {
+      name: "Chinelo Okonkwo",
+      text: "Fitpath AI helped me stay consistent with my meals and workouts. I feel more energized every day!",
+    },
+    {
+      name: "Tolu Adebayo",
+      text: "As a busy professional, this app gave me exactly what I needed without wasting time. It's amazing.",
+    },
+    {
+      name: "Emeka Obasi",
+      text: "I've lost 4kg already in just 2 weeks. The plans are easy to follow and super motivating.",
+    },
+    {
+      name: "Sarah Johnson",
+      text: "Finally, a fitness plan that's tailored to my lifestyle. I love the simplicity and results.",
+    },
+    {
+      name: "Michael Williams",
+      text: "The daily variation in meals keeps things exciting. Highly recommend for anyone serious about health.",
+    },
+    {
+      name: "Amanda Jones",
+      text: "I use it every morning. The structure and pacing of workouts keep me accountable!",
+    },
+  ];
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [testimonials.length]);
 
   return (
     <Layout>
@@ -164,6 +206,49 @@ const Home = () => {
                 </Button>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section className="py-16 bg-white rounded-2xl my-12">
+        <div className="container px-4 mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">What Our Users Are Saying</h2>
+          <p className="text-lg text-gray-600 text-center mb-10 max-w-2xl mx-auto">
+            Discover how Fitpath AI has helped people transform their fitness journey
+          </p>
+          
+          <div className="relative px-12 max-w-4xl mx-auto">
+            <Carousel className="w-full" setActiveItem={setActiveIndex} opts={{ loop: true, align: "center" }}>
+              <CarouselContent>
+                {testimonials.map((testimonial, index) => (
+                  <CarouselItem key={index}>
+                    <div className="bg-fitpath-gray p-8 rounded-2xl shadow-soft transition-all duration-300 hover:shadow-hover text-center min-h-[200px] flex flex-col justify-center">
+                      <p className="text-lg italic mb-6">"{testimonial.text}"</p>
+                      <h3 className="font-semibold text-fitpath-blue">{testimonial.name}</h3>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="left-0" />
+              <CarouselNext className="right-0" />
+            </Carousel>
+            
+            {/* Dots Indicator */}
+            <div className="flex justify-center mt-6 space-x-2">
+              {testimonials.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setActiveIndex(index)}
+                  className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                    activeIndex === index 
+                      ? "bg-fitpath-blue scale-110" 
+                      : "bg-gray-300 hover:bg-gray-400"
+                  }`}
+                  aria-label={`Go to testimonial ${index + 1}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
