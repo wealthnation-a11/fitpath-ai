@@ -1,10 +1,10 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans, Plan } from "@/context/PlanContext";
 import { useAuth } from "@/context/AuthContext";
 import { usePayment } from "@/context/PaymentContext";
 import Layout from "@/components/layout/Layout";
+import { WorkoutAnimation } from "@/components/workout/WorkoutAnimation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,6 @@ const PlanDetail = () => {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
   
-  // Check if user is on free trial or has active subscription
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
 
   useEffect(() => {
@@ -79,13 +78,9 @@ const PlanDetail = () => {
       return;
     }
     
-    // In a real implementation, this would generate a PDF or other document
-    // For now, we'll just generate a text version and trigger a download
-    
     let content = `FitPath AI - ${plan.name}\n`;
     content += `Created: ${formatDate(plan.createdAt)}\n\n`;
     
-    // Add workouts
     content += "WORKOUTS:\n";
     for (const workout of plan.workouts) {
       content += `\nDay ${workout.day}:\n`;
@@ -94,7 +89,6 @@ const PlanDetail = () => {
       }
     }
     
-    // Add meals
     content += "\n\nMEAL PLAN:\n";
     for (const meal of plan.meals) {
       content += `\nDay ${meal.day}:\n`;
@@ -104,7 +98,6 @@ const PlanDetail = () => {
       content += `Snacks: ${meal.snacks.join(", ")}\n`;
     }
     
-    // Create blob and trigger download
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -191,25 +184,32 @@ const PlanDetail = () => {
                         Day {workout.day}
                       </AccordionTrigger>
                       <AccordionContent>
-                        <div className="space-y-4">
+                        <div className="space-y-6">
                           {workout.exercises.map((exercise, index) => (
                             <div
                               key={index}
                               className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-blue transition-colors"
                             >
-                              <h4 className="font-medium text-fitpath-blue">{exercise.name}</h4>
-                              <div className="grid grid-cols-3 gap-2 mt-2 text-sm">
-                                <div>
-                                  <span className="text-muted-foreground">Sets:</span>{" "}
-                                  {exercise.sets}
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Reps:</span>{" "}
-                                  {exercise.reps}
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Rest:</span>{" "}
-                                  {exercise.rest}
+                              <h4 className="font-medium text-fitpath-blue mb-4">
+                                {exercise.name}
+                              </h4>
+                              <div className="grid md:grid-cols-2 gap-4">
+                                <WorkoutAnimation name={exercise.name} />
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-3 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-muted-foreground">Sets:</span>{" "}
+                                      {exercise.sets}
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Reps:</span>{" "}
+                                      {exercise.reps}
+                                    </div>
+                                    <div>
+                                      <span className="text-muted-foreground">Rest:</span>{" "}
+                                      {exercise.rest}
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </div>
