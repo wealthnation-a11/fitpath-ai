@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { usePlans } from "@/context/PlanContext";
+import { usePlans, Plan } from "@/context/PlanContext";
 import { usePayment } from "@/context/PaymentContext";
 import Layout from "@/components/layout/Layout";
 import { ProgressSection } from "@/components/progress/ProgressSection";
