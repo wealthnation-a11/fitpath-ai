@@ -1,10 +1,10 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { usePlans, Plan } from "@/context/PlanContext";
+import { usePlans } from "@/context/PlanContext";
 import { usePayment } from "@/context/PaymentContext";
 import Layout from "@/components/layout/Layout";
+import { ProgressSection } from "@/components/progress/ProgressSection";
 import {
   Card,
   CardContent,
@@ -25,14 +25,12 @@ const Dashboard = () => {
   const { subscription, checkSubscription } = usePayment();
   const navigate = useNavigate();
 
-  // Verify user is authenticated
   useEffect(() => {
     if (!userLoading && !user) {
       navigate("/login");
     }
   }, [user, userLoading, navigate]);
 
-  // Check subscription status on load
   useEffect(() => {
     checkSubscription();
   }, [checkSubscription]);
@@ -67,13 +65,9 @@ const Dashboard = () => {
   };
 
   const handleDownloadPlan = (plan: Plan) => {
-    // In a real implementation, this would generate a PDF or other document
-    // For now, we'll just generate a text version and trigger a download
-    
     let content = `FitPath AI - ${plan.name}\n`;
     content += `Created: ${formatDate(plan.createdAt)}\n\n`;
     
-    // Add workouts
     content += "WORKOUTS:\n";
     for (const workout of plan.workouts) {
       content += `\nDay ${workout.day}:\n`;
@@ -82,7 +76,6 @@ const Dashboard = () => {
       }
     }
     
-    // Add meals
     content += "\n\nMEAL PLAN:\n";
     for (const meal of plan.meals) {
       content += `\nDay ${meal.day}:\n`;
@@ -92,7 +85,6 @@ const Dashboard = () => {
       content += `Snacks: ${meal.snacks.join(", ")}\n`;
     }
     
-    // Create blob and trigger download
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -107,7 +99,6 @@ const Dashboard = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        {/* Welcome Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
@@ -134,14 +125,14 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* Dashboard Tabs */}
+        <ProgressSection />
+
         <Tabs defaultValue="plans" className="space-y-6">
           <TabsList>
             <TabsTrigger value="plans">Your Plans</TabsTrigger>
             <TabsTrigger value="subscription">Subscription</TabsTrigger>
           </TabsList>
 
-          {/* Plans Tab */}
           <TabsContent value="plans" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-semibold">📚 Your Previous Fitness Plans</h2>
@@ -203,7 +194,6 @@ const Dashboard = () => {
             )}
           </TabsContent>
 
-          {/* Subscription Tab */}
           <TabsContent value="subscription">
             <Card>
               <CardHeader>
