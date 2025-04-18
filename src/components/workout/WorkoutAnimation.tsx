@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Play, Pause } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { workoutVideos } from "@/data/workoutVideos";
@@ -10,15 +10,26 @@ interface WorkoutAnimationProps {
 
 export const WorkoutAnimation = ({ name }: WorkoutAnimationProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const videoUrl = workoutVideos[name];
 
+  useEffect(() => {
+    // Preload the video when the component mounts
+    if (videoRef.current) {
+      videoRef.current.load();
+    }
+  }, [videoUrl]);
+
   const handlePlayPause = () => {
-    const video = document.getElementById(`video-${name}`) as HTMLVideoElement;
-    if (video) {
+    if (videoRef.current) {
       if (isPlaying) {
-        video.pause();
+        videoRef.current.pause();
       } else {
-        video.play();
+        // Reset video to start and play
+        videoRef.current.currentTime = 0;
+        videoRef.current.play().catch(error => {
+          console.error("Error playing video:", error);
+        });
       }
       setIsPlaying(!isPlaying);
     }
@@ -33,12 +44,23 @@ export const WorkoutAnimation = ({ name }: WorkoutAnimationProps) => {
       <p className="text-sm text-muted-foreground mb-2">Watch how to do it:</p>
       <div className="aspect-video relative">
         <video
+          ref={videoRef}
           id={`video-${name}`}
           className="w-full h-full object-cover rounded-lg"
           src={videoUrl}
           playsInline
           loop
-          preload="metadata"
+          muted
+          preload="auto"
+          onCanPlay={() => {
+            // Start playing as soon as enough data is loaded
+            if (videoRef.current && !isPlaying) {
+              videoRef.current.play().catch(error => {
+                console.error("Error auto-playing video:", error);
+              });
+              setIsPlaying(true);
+            }
+          }}
         >
           Your browser does not support the video tag.
         </video>
