@@ -37,7 +37,8 @@ export const TrialStatus = () => {
     }
   }, [subscription]);
 
-  if (!user || !subscription.plan?.id === "free-trial") {
+  // Fixed the boolean/string comparison issue here
+  if (!user || subscription.plan?.id !== "free-trial") {
     return null;
   }
 

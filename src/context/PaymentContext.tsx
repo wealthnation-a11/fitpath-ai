@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { PAYSTACK_PUBLIC_KEY } from "@/utils/env";
@@ -57,7 +58,10 @@ const BASE_SUBSCRIPTION_PLANS = [
   }
 ];
 
-export const SUBSCRIPTION_PLANS = BASE_SUBSCRIPTION_PLANS;
+export const SUBSCRIPTION_PLANS = BASE_SUBSCRIPTION_PLANS.map(plan => ({
+  ...plan,
+  amount: plan.baseAmount // Initialize with same value, will be adjusted based on currency
+}));
 
 export type SubscriptionStatus = {
   active: boolean;
@@ -76,6 +80,7 @@ type PaymentContextType = {
   initiatePayment: (plan: SubscriptionPlan) => Promise<void>;
   verifyPayment: (reference: string) => Promise<boolean>;
   checkSubscription: () => Promise<SubscriptionStatus>;
+  startFreeTrial: () => void; // New function to start a free trial
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
@@ -305,76 +310,28 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const handleGeneratePlan = async () => {
+  // New function to start a free trial
+  const startFreeTrial = () => {
     if (!user) {
-      toast.error("Please login to generate a plan");
-      navigate("/login");
+      toast.error("Please login to start a free trial");
       return;
     }
-
-    if (selectedPlan === "free-trial") {
-      const newTrialSubscription = {
-        active: true,
-        plan: SUBSCRIPTION_PLANS.find(p => p.id === "free-trial"),
-        trialStartDate: new Date().toISOString()
-      };
-      
-      localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(newTrialSubscription));
-      setSubscription(newTrialSubscription);
+    
+    const trialPlan = plans.find(p => p.id === "free-trial");
+    if (!trialPlan) {
+      toast.error("Free trial plan not found");
+      return;
     }
-
-    // If the user doesn't have an active subscription or is on free trial,
-    // check if they've reached the limit
-    if (!subscription.active && selectedPlan === "free-trial") {
-      // Simulate a free trial check - in a real app, this would be tracked in the database
-      const existingPlans = JSON.parse(localStorage.getItem(`fitpath-plans-${user.id}`) || "[]");
-      const freeTrialCount = existingPlans.length;
-      
-      if (freeTrialCount >= 1) {
-        toast.error("You have reached your free trial limit. Please upgrade to continue.");
-        return;
-      }
-    }
-
-    try {
-      // If not on free trial, handle payment first
-      if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
-        const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
-        if (!planObj) {
-          toast.error("Invalid plan selected");
-          return;
-        }
-
-        // Calculate the correct amount based on the currency rate
-        const localizedPlan = {
-          ...planObj,
-          amount: Math.round(planObj.baseAmount * currency.rate)
-        };
-
-        try {
-          await initiatePayment(localizedPlan);
-          // Payment will be handled by the Paystack popup
-          // If successful, the subscription context will be updated
-          return;
-        } catch (error) {
-          console.error("Payment failed:", error);
-          toast.error("Payment failed. Please try again.");
-          return;
-        }
-      }
-
-      // If we get here, either the user has an active subscription or is using the free trial
-      setGenerating(true);
-      const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
-      const plan = await createPlan(duration);
-      toast.success("Plan generated successfully!");
-      navigate(`/plan/${plan.id}`);
-    } catch (error) {
-      console.error("Error generating plan:", error);
-      toast.error("Failed to generate plan. Please try again.");
-    } finally {
-      setGenerating(false);
-    }
+    
+    const newTrialSubscription: SubscriptionStatus = {
+      active: true,
+      plan: trialPlan,
+      trialStartDate: new Date().toISOString()
+    };
+    
+    setSubscription(newTrialSubscription);
+    localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(newTrialSubscription));
+    toast.success("Free trial activated!");
   };
 
   return (
@@ -387,7 +344,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         currency,
         initiatePayment,
         verifyPayment,
-        checkSubscription
+        checkSubscription,
+        startFreeTrial
       }}
     >
       {children}
