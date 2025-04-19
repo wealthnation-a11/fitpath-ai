@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans, Plan } from "@/context/PlanContext";
@@ -19,7 +20,15 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Download, ArrowLeft, LockIcon, Info } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Download, ArrowLeft, Lock, Info } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -29,7 +38,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
-import { Lock } from "lucide-react";
+import { TrialStatus } from "@/components/trial/TrialStatus";
 
 const PlanDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,10 +47,31 @@ const PlanDetail = () => {
   const { subscription } = usePayment();
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
   const isTrialUser = subscription.plan?.id === "free-trial";
+  const isTrialExpired = subscription.isTrialExpired || false;
+  
+  // Calculate if trial is expired based on start date
+  useEffect(() => {
+    if (isTrialUser && subscription.trialStartDate) {
+      const trialStart = new Date(subscription.trialStartDate);
+      const now = new Date();
+      const trialDuration = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
+      const timeElapsed = now.getTime() - trialStart.getTime();
+      
+      if (timeElapsed >= trialDuration) {
+        // If trial expired, redirect to plans page
+        toast.error("Your free trial has expired. Please upgrade to continue.");
+        navigate('/plans');
+      }
+    }
+  }, [isTrialUser, subscription.trialStartDate, navigate]);
+
+  // Function to check if content should be shown based on trial status
   const showRestrictedContent = (dayNumber: number) => {
+    if (isPremiumUser) return true;
     if (!isTrialUser) return true;
     return dayNumber <= 3; // Only show first 3 days for trial users
   };
@@ -81,7 +111,7 @@ const PlanDetail = () => {
 
   const handleDownloadPlan = () => {
     if (!isPremiumUser) {
-      toast.error("PDF download is available for premium users only. Upgrade to access full features.");
+      setShowUpgradeDialog(true);
       return;
     }
     
@@ -120,7 +150,7 @@ const PlanDetail = () => {
 
   const handleUpgradeClick = () => {
     navigate("/plans");
-    toast.info("Upgrade to a premium plan to download your fitness plans");
+    toast.info("Upgrade to a premium plan to unlock all features");
   };
 
   const handleWorkoutFinish = (duration: number) => {
@@ -130,12 +160,14 @@ const PlanDetail = () => {
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
+        {isTrialUser && <TrialStatus />}
+        
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <Button
               variant="ghost"
               size="sm"
-              className="mb-2 btn-hover"
+              className="mb-2"
               onClick={() => navigate("/dashboard")}
             >
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
@@ -146,34 +178,13 @@ const PlanDetail = () => {
             </p>
           </div>
           
-          {isPremiumUser ? (
-            <Button onClick={handleDownloadPlan} className="btn-hover">
-              <Download className="mr-2 h-4 w-4" /> Download Plan
-            </Button>
-          ) : (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div>
-                    <Button 
-                      onClick={handleUpgradeClick} 
-                      variant="outline" 
-                      className="flex gap-2 btn-hover"
-                    >
-                      <LockIcon className="h-4 w-4" />
-                      <span>Upgrade to Download</span>
-                    </Button>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="flex items-center gap-2">
-                    <Info className="h-4 w-4 text-amber-500" />
-                    <span>PDF download is available for premium users only</span>
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
+          <Button 
+            onClick={handleDownloadPlan} 
+            className={`${!isPremiumUser ? 'bg-gray-400' : ''}`}
+          >
+            <Download className="mr-2 h-4 w-4" /> 
+            {isPremiumUser ? "Download Plan" : "Premium Feature"}
+          </Button>
         </div>
 
         <Tabs defaultValue="workouts" className="w-full">
@@ -190,12 +201,18 @@ const PlanDetail = () => {
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
                   {plan.workouts.map((workout) => (
-                    showRestrictedContent(workout.day) ? (
-                      <AccordionItem key={workout.day} value={`day-${workout.day}`}>
-                        <AccordionTrigger className="text-lg font-medium">
-                          Day {workout.day}
-                        </AccordionTrigger>
-                        <AccordionContent>
+                    <AccordionItem key={workout.day} value={`day-${workout.day}`}>
+                      <AccordionTrigger className={`text-lg font-medium ${!showRestrictedContent(workout.day) ? 'text-gray-400' : ''}`}>
+                        Day {workout.day}
+                        {!showRestrictedContent(workout.day) && (
+                          <div className="ml-2 flex items-center text-amber-500">
+                            <Lock className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Premium</span>
+                          </div>
+                        )}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        {showRestrictedContent(workout.day) ? (
                           <div className="space-y-6">
                             <WorkoutSession 
                               workoutName={`Day ${workout.day} Workout`}
@@ -231,28 +248,25 @@ const PlanDetail = () => {
                               </div>
                             ))}
                           </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ) : (
-                      <AccordionItem key={workout.day} value={`day-${workout.day}`}>
-                        <AccordionTrigger className="text-lg font-medium text-gray-400">
-                          Day {workout.day} <Lock className="ml-2 h-4 w-4" />
-                        </AccordionTrigger>
-                        <AccordionContent>
-                          <div className="p-4 text-center text-gray-500">
-                            <Lock className="mx-auto h-8 w-8 mb-2" />
-                            <p>Upgrade to access this day's workout plan</p>
-                            <Button
-                              onClick={() => navigate('/plans')}
-                              variant="outline"
-                              className="mt-2"
-                            >
-                              Upgrade Now
-                            </Button>
+                        ) : (
+                          <div className="p-8 text-center">
+                            <div className="mx-auto bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
+                              <Lock className="mx-auto h-12 w-12 text-amber-500 mb-3" />
+                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Premium Content Locked</h3>
+                              <p className="text-amber-700 mb-4">
+                                Upgrade to unlock access to this day's workout plan and all premium features.
+                              </p>
+                              <Button
+                                onClick={handleUpgradeClick}
+                                className="bg-gradient-to-r from-amber-500 to-amber-600 border-none"
+                              >
+                                Upgrade Now
+                              </Button>
+                            </div>
                           </div>
-                        </AccordionContent>
-                      </AccordionItem>
-                    )
+                        )}
+                      </AccordionContent>
+                    </AccordionItem>
                   ))}
                 </Accordion>
               </CardContent>
@@ -268,35 +282,59 @@ const PlanDetail = () => {
                 <Accordion type="single" collapsible className="w-full">
                   {plan.meals.map((meal) => (
                     <AccordionItem key={meal.day} value={`day-${meal.day}`}>
-                      <AccordionTrigger className="text-lg font-medium">
+                      <AccordionTrigger className={`text-lg font-medium ${!showRestrictedContent(meal.day) ? 'text-gray-400' : ''}`}>
                         Day {meal.day}
+                        {!showRestrictedContent(meal.day) && (
+                          <div className="ml-2 flex items-center text-amber-500">
+                            <Lock className="h-4 w-4 mr-1" />
+                            <span className="text-xs">Premium</span>
+                          </div>
+                        )}
                       </AccordionTrigger>
                       <AccordionContent>
-                        <div className="space-y-4">
-                          <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                            <h4 className="font-medium text-fitpath-green">Breakfast</h4>
-                            <p className="mt-1">{meal.breakfast}</p>
-                          </div>
+                        {showRestrictedContent(meal.day) ? (
+                          <div className="space-y-4">
+                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
+                              <h4 className="font-medium text-fitpath-green">Breakfast</h4>
+                              <p className="mt-1">{meal.breakfast}</p>
+                            </div>
 
-                          <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                            <h4 className="font-medium text-fitpath-green">Lunch</h4>
-                            <p className="mt-1">{meal.lunch}</p>
-                          </div>
+                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
+                              <h4 className="font-medium text-fitpath-green">Lunch</h4>
+                              <p className="mt-1">{meal.lunch}</p>
+                            </div>
 
-                          <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                            <h4 className="font-medium text-fitpath-green">Dinner</h4>
-                            <p className="mt-1">{meal.dinner}</p>
-                          </div>
+                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
+                              <h4 className="font-medium text-fitpath-green">Dinner</h4>
+                              <p className="mt-1">{meal.dinner}</p>
+                            </div>
 
-                          <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                            <h4 className="font-medium text-fitpath-green">Snacks</h4>
-                            <ul className="mt-1 list-disc list-inside">
-                              {meal.snacks.map((snack, index) => (
-                                <li key={index}>{snack}</li>
-                              ))}
-                            </ul>
+                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
+                              <h4 className="font-medium text-fitpath-green">Snacks</h4>
+                              <ul className="mt-1 list-disc list-inside">
+                                {meal.snacks.map((snack, index) => (
+                                  <li key={index}>{snack}</li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="p-8 text-center">
+                            <div className="mx-auto bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
+                              <Lock className="mx-auto h-12 w-12 text-amber-500 mb-3" />
+                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Premium Content Locked</h3>
+                              <p className="text-amber-700 mb-4">
+                                Upgrade to unlock access to this day's meal plan and all premium features.
+                              </p>
+                              <Button
+                                onClick={handleUpgradeClick}
+                                className="bg-gradient-to-r from-amber-500 to-amber-600 border-none"
+                              >
+                                Upgrade Now
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                       </AccordionContent>
                     </AccordionItem>
                   ))}
@@ -310,20 +348,56 @@ const PlanDetail = () => {
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 flex items-start gap-3 mt-8">
             <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
             <div>
-              <p className="font-medium">Premium Feature Locked</p>
+              <p className="font-medium">Premium Features Locked</p>
               <p className="text-sm mt-1">
-                You're currently on the free plan. Upgrade to a premium subscription to download your fitness and meal plans as PDF files.
+                {isTrialUser ? 
+                  "You're currently on a 3-day free trial. Upgrade to a premium subscription to access all days and download your fitness and meal plans." :
+                  "You're currently on the free plan. Upgrade to a premium subscription to access all features."}
               </p>
               <Button 
                 onClick={handleUpgradeClick} 
                 variant="outline" 
-                className="mt-3 border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800 btn-hover"
+                className="mt-3 border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800"
               >
                 Upgrade Now
               </Button>
             </div>
           </div>
         )}
+
+        {/* Premium Upgrade Dialog */}
+        <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Premium Feature</DialogTitle>
+              <DialogDescription>
+                <div className="flex flex-col items-center py-4">
+                  <Download className="h-16 w-16 text-amber-500 mb-4" />
+                  <p className="text-center font-medium text-base mb-2">
+                    PDF Downloads are available for Premium Members only
+                  </p>
+                  <p className="text-center text-sm text-muted-foreground">
+                    Upgrade your plan to download your customized workout and meal plans
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowUpgradeDialog(false)}>
+                Maybe Later
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-amber-500 to-amber-600"
+                onClick={() => {
+                  setShowUpgradeDialog(false);
+                  navigate('/plans');
+                }}
+              >
+                Upgrade Now
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );

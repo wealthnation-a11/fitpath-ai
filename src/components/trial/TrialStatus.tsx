@@ -20,27 +20,54 @@ export const TrialStatus = () => {
   const { subscription } = usePayment();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [daysLeft, setDaysLeft] = useState<number>(3);
+  const [timeLeft, setTimeLeft] = useState<{
+    days: number;
+    hours: number;
+    minutes: number;
+  }>({ days: 0, hours: 0, minutes: 0 });
   const [showTrialEndedDialog, setShowTrialEndedDialog] = useState(false);
 
   useEffect(() => {
     if (subscription.trialStartDate && subscription.plan?.id === "free-trial") {
-      const trialStart = new Date(subscription.trialStartDate);
-      const now = new Date();
-      const daysPassed = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
-      const remaining = Math.max(0, 3 - daysPassed);
-      setDaysLeft(remaining);
-
-      if (remaining === 0) {
-        setShowTrialEndedDialog(true);
-      }
+      const updateTimeLeft = () => {
+        const trialStart = new Date(subscription.trialStartDate);
+        const now = new Date();
+        
+        // Trial duration in milliseconds (3 days)
+        const trialDuration = 3 * 24 * 60 * 60 * 1000;
+        
+        // Calculate time elapsed and time remaining
+        const timeElapsed = now.getTime() - trialStart.getTime();
+        const timeRemaining = Math.max(0, trialDuration - timeElapsed);
+        
+        if (timeRemaining <= 0) {
+          setTimeLeft({ days: 0, hours: 0, minutes: 0 });
+          setShowTrialEndedDialog(true);
+          return;
+        }
+        
+        // Convert remaining time to days, hours, minutes
+        const days = Math.floor(timeRemaining / (24 * 60 * 60 * 1000));
+        const hours = Math.floor((timeRemaining % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+        const minutes = Math.floor((timeRemaining % (60 * 60 * 1000)) / (60 * 1000));
+        
+        setTimeLeft({ days, hours, minutes });
+      };
+      
+      // Update immediately and then every minute
+      updateTimeLeft();
+      const intervalId = setInterval(updateTimeLeft, 60000);
+      
+      return () => clearInterval(intervalId);
     }
   }, [subscription]);
 
-  // Fixed the boolean/string comparison issue here
+  // Early return if user is not on a free trial
   if (!user || subscription.plan?.id !== "free-trial") {
     return null;
   }
+
+  const isTrialEnded = timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes === 0;
 
   return (
     <>
@@ -48,16 +75,27 @@ export const TrialStatus = () => {
         <div className="flex items-center gap-2">
           <Timer className="h-5 w-5 text-amber-600" />
           <div className="flex-1">
-            <h3 className="font-medium text-amber-900">
-              {daysLeft > 0 ? (
-                `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left in your free trial`
-              ) : (
-                'Your free trial has ended'
-              )}
-            </h3>
-            <p className="text-sm text-amber-700 mt-1">
-              Upgrade to a premium plan to unlock all features and continue your fitness journey
-            </p>
+            {!isTrialEnded ? (
+              <>
+                <h3 className="font-medium text-amber-900">
+                  ⏳ Free Trial: {timeLeft.days} {timeLeft.days === 1 ? 'Day' : 'Days'}, 
+                  {' '}{timeLeft.hours} {timeLeft.hours === 1 ? 'Hour' : 'Hours'}, 
+                  {' '}{timeLeft.minutes} {timeLeft.minutes === 1 ? 'Minute' : 'Minutes'} left
+                </h3>
+                <p className="text-sm text-amber-700 mt-1">
+                  Upgrade to a premium plan to unlock all features and continue your fitness journey
+                </p>
+              </>
+            ) : (
+              <>
+                <h3 className="font-medium text-amber-900">
+                  Your free trial has ended
+                </h3>
+                <p className="text-sm text-amber-700 mt-1">
+                  Upgrade now to continue accessing your personalized workouts and meal plans
+                </p>
+              </>
+            )}
           </div>
           <Button 
             onClick={() => navigate('/plans')}
@@ -69,17 +107,32 @@ export const TrialStatus = () => {
         </div>
       </div>
 
-      <AlertDialog open={showTrialEndedDialog} onOpenChange={setShowTrialEndedDialog}>
-        <AlertDialogContent>
+      <AlertDialog 
+        open={showTrialEndedDialog} 
+        onOpenChange={(open) => {
+          // If they try to close the dialog, redirect to plans page
+          if (!open && isTrialEnded) {
+            navigate('/plans');
+          } else {
+            setShowTrialEndedDialog(open);
+          }
+        }}
+      >
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Your Free Trial Has Ended</AlertDialogTitle>
-            <AlertDialogDescription>
-              Upgrade your plan to continue accessing your personalized workouts and meal plans.
+            <AlertDialogTitle className="text-xl">Your Free Trial Has Ended</AlertDialogTitle>
+            <AlertDialogDescription className="text-base">
+              <div className="flex flex-col items-center py-4">
+                <Lock className="h-12 w-12 text-amber-500 mb-4" />
+                <p className="text-center">
+                  Your 3-day free trial period has expired. Upgrade your plan to continue accessing your personalized workouts and meal plans.
+                </p>
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Maybe Later</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/plans')}>
+            <AlertDialogCancel onClick={() => navigate('/plans')}>Maybe Later</AlertDialogCancel>
+            <AlertDialogAction onClick={() => navigate('/plans')} className="bg-gradient-to-r from-amber-500 to-amber-600">
               Upgrade Now
             </AlertDialogAction>
           </AlertDialogFooter>

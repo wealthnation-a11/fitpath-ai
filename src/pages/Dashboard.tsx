@@ -1,3 +1,4 @@
+
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -33,8 +34,17 @@ const Dashboard = () => {
   }, [user, userLoading, navigate]);
 
   useEffect(() => {
-    checkSubscription();
-  }, [checkSubscription]);
+    const checkSubscriptionStatus = async () => {
+      const subscriptionStatus = await checkSubscription();
+      
+      // Redirect to pricing page if trial has expired
+      if (subscriptionStatus.isTrialExpired) {
+        navigate("/plans");
+      }
+    };
+    
+    checkSubscriptionStatus();
+  }, [checkSubscription, navigate]);
 
   if (userLoading || plansLoading || !user) {
     return (
@@ -66,6 +76,12 @@ const Dashboard = () => {
   };
 
   const handleDownloadPlan = (plan: Plan) => {
+    // Check if user is on trial - if so, redirect to plans page
+    if (subscription.plan?.id === "free-trial") {
+      navigate("/plans");
+      return;
+    }
+    
     let content = `FitPath AI - ${plan.name}\n`;
     content += `Created: ${formatDate(plan.createdAt)}\n\n`;
     
@@ -128,7 +144,7 @@ const Dashboard = () => {
 
         <ProgressSection />
 
-        <TrialStatus />
+        {subscription.plan?.id === "free-trial" && <TrialStatus />}
 
         <Tabs defaultValue="plans" className="space-y-6">
           <TabsList>
@@ -187,6 +203,8 @@ const Dashboard = () => {
                       <Button
                         size="sm"
                         onClick={() => handleDownloadPlan(plan)}
+                        disabled={subscription.plan?.id === "free-trial"}
+                        className={subscription.plan?.id === "free-trial" ? "opacity-50 cursor-not-allowed" : ""}
                       >
                         <Download className="mr-2 h-4 w-4" /> Download
                       </Button>
@@ -208,21 +226,26 @@ const Dashboard = () => {
               <CardContent>
                 {subscription.active ? (
                   <div className="space-y-4">
-                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                      <h3 className="font-semibold text-green-800">Active Subscription</h3>
-                      <p className="text-green-700">
+                    <div className={`p-4 ${subscription.plan?.id === "free-trial" ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200"} border rounded-lg`}>
+                      <h3 className={`font-semibold ${subscription.plan?.id === "free-trial" ? "text-amber-800" : "text-green-800"}`}>
+                        {subscription.plan?.id === "free-trial" ? "Free Trial Active" : "Active Subscription"}
+                      </h3>
+                      <p className={subscription.plan?.id === "free-trial" ? "text-amber-700" : "text-green-700"}>
                         You are currently on the {subscription.plan?.name}
                       </p>
-                      <p className="text-sm text-green-600">
-                        Your subscription will expire on{" "}
-                        {subscription.expiresAt ? formatDate(subscription.expiresAt) : "N/A"}
-                      </p>
+                      {subscription.expiresAt && (
+                        <p className={`text-sm ${subscription.plan?.id === "free-trial" ? "text-amber-600" : "text-green-600"}`}>
+                          Your subscription will expire on{" "}
+                          {formatDate(subscription.expiresAt)}
+                        </p>
+                      )}
                     </div>
                     <Button
-                      variant="outline"
+                      variant={subscription.plan?.id === "free-trial" ? "default" : "outline"}
                       onClick={() => navigate("/plans")}
+                      className={subscription.plan?.id === "free-trial" ? "bg-gradient-to-r from-amber-500 to-amber-600" : ""}
                     >
-                      Manage Subscription
+                      {subscription.plan?.id === "free-trial" ? "Upgrade Now" : "Manage Subscription"}
                     </Button>
                   </div>
                 ) : (
