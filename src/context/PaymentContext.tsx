@@ -57,6 +57,9 @@ const BASE_SUBSCRIPTION_PLANS = [
   }
 ];
 
+// Export the BASE_SUBSCRIPTION_PLANS as SUBSCRIPTION_PLANS for backward compatibility
+export const SUBSCRIPTION_PLANS = BASE_SUBSCRIPTION_PLANS;
+
 export type SubscriptionStatus = {
   active: boolean;
   plan?: SubscriptionPlan;

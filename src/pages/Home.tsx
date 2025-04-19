@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
-import { ArrowRight, Check, Dumbbell, Brain, Calendar } from "lucide-react";
+import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
 import { SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import {
   Carousel,
@@ -72,7 +72,6 @@ const Home = () => {
 
   return (
     <Layout>
-      {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-white to-fitpath-gray rounded-2xl mb-12">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row items-center">
@@ -123,7 +122,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="py-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
@@ -142,7 +140,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
       <section className="py-12 bg-gray-50 rounded-2xl">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Simple Pricing</h2>
@@ -165,9 +162,9 @@ const Home = () => {
                 <h3 className="text-xl font-semibold text-center mb-2">{plan.name}</h3>
                 <div className="text-center mb-4">
                   <span className="text-3xl font-bold">
-                    {plan.amount === 0 ? "Free" : `₦${plan.amount / 100}`}
+                    {plan.baseAmount === 0 ? "Free" : `₦${Math.round(plan.baseAmount * 780) / 100}`}
                   </span>
-                  {plan.amount > 0 && (
+                  {plan.baseAmount > 0 && (
                     <span className="text-gray-600"> / {plan.id === "monthly" ? "month" : plan.id}</span>
                   )}
                 </div>
@@ -210,7 +207,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
       <section className="py-16 bg-white rounded-2xl my-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">What Our Users Are Saying</h2>
@@ -234,7 +230,6 @@ const Home = () => {
               <CarouselNext className="right-0" />
             </Carousel>
             
-            {/* Dots Indicator */}
             <div className="flex justify-center mt-6 space-x-2">
               {testimonials.map((_, index) => (
                 <button
@@ -253,7 +248,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 mt-12">
         <div className="container px-4 mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
