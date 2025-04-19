@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -182,49 +181,44 @@ const Plans = () => {
               onValueChange={setSelectedPlan}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             >
-              {SUBSCRIPTION_PLANS.map((plan) => {
-                // Calculate the localized amount for display
-                const localizedAmount = Math.round(plan.baseAmount * currency.rate);
-                
-                return (
-                  <div key={plan.id}>
-                    <RadioGroupItem
-                      value={plan.id}
-                      id={`plan-${plan.id}`}
-                      className="peer sr-only"
-                    />
-                    <Label
-                      htmlFor={`plan-${plan.id}`}
-                      className={`flex flex-col p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 ${
-                        subscription.active &&
-                        subscription.plan?.id === plan.id
-                          ? "ring-2 ring-primary"
-                          : ""
-                      }`}
-                    >
-                      {subscription.active &&
-                        subscription.plan?.id === plan.id && (
-                          <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full self-start mb-2">
-                            Current Plan
-                          </span>
-                        )}
-                      <span className="font-medium mb-1">{plan.name}</span>
-                      <span className="text-2xl font-bold mb-1">
-                        {plan.baseAmount === 0 ? "Free" : `${currency.symbol}${localizedAmount / 100}`}
-                      </span>
-                      <span className="text-sm text-muted-foreground mb-2">
-                        {plan.description}
-                      </span>
-                      {plan.id === "free-trial" && (
-                        <div className="text-xs text-amber-600 flex items-center mt-auto">
-                          <Info className="h-3 w-3 mr-1" />
-                          Limited to 1 plan
-                        </div>
-                      )}
-                    </Label>
-                  </div>
-                );
-              })}
+              {SUBSCRIPTION_PLANS.map((plan) => (
+                <div key={plan.id}>
+                  <RadioGroupItem
+                    value={plan.id}
+                    id={`plan-${plan.id}`}
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor={`plan-${plan.id}`}
+                    className={`flex flex-col p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 ${
+                      subscription.active &&
+                      subscription.plan?.id === plan.id
+                        ? "ring-2 ring-primary"
+                        : ""
+                    }`}
+                  >
+                    {subscription.active &&
+                      subscription.plan?.id === plan.id && (
+                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full self-start mb-2">
+                          Current Plan
+                        </span>
+                    )}
+                    <span className="font-medium mb-1">{plan.name}</span>
+                    <span className="text-2xl font-bold mb-1">
+                      {plan.baseAmount === 0 ? "Free" : `₦${plan.baseAmount / 100}`}
+                    </span>
+                    <span className="text-sm text-muted-foreground mb-2">
+                      {plan.description}
+                    </span>
+                    {plan.id === "free-trial" && (
+                      <div className="text-xs text-amber-600 flex items-center mt-auto">
+                        <Info className="h-3 w-3 mr-1" />
+                        Limited to 1 plan
+                      </div>
+                    )}
+                  </Label>
+                </div>
+              ))}
             </RadioGroup>
           </CardContent>
         </Card>

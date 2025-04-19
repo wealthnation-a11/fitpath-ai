@@ -162,7 +162,7 @@ const Home = () => {
                 <h3 className="text-xl font-semibold text-center mb-2">{plan.name}</h3>
                 <div className="text-center mb-4">
                   <span className="text-3xl font-bold">
-                    {plan.baseAmount === 0 ? "Free" : `₦${Math.round(plan.baseAmount * 780) / 100}`}
+                    {plan.baseAmount === 0 ? "Free" : `₦${plan.baseAmount / 100}`}
                   </span>
                   {plan.baseAmount > 0 && (
                     <span className="text-gray-600"> / {plan.id === "monthly" ? "month" : plan.id}</span>

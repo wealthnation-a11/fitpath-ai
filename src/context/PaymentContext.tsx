@@ -25,7 +25,7 @@ export type SubscriptionPlan = {
   description: string;
 };
 
-// Base prices in USD
+// Base prices in USD and NGN
 const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "free-trial",
@@ -37,27 +37,26 @@ const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "monthly",
     name: "Monthly Plan",
-    baseAmount: 500, // $5 USD
+    baseAmount: 780000, // ₦7,800
     duration: 30,
     description: "30 days of personalized fitness and meal plans"
   },
   {
     id: "semi-annual",
     name: "6 Months Plan",
-    baseAmount: 2500, // $25 USD
+    baseAmount: 3900000, // ₦39,000
     duration: 180,
     description: "6 months of personalized fitness and meal plans"
   },
   {
     id: "annual",
     name: "Annual Plan",
-    baseAmount: 4900, // $49 USD
+    baseAmount: 7600000, // ₦76,000
     duration: 365,
     description: "12 months of personalized fitness and meal plans"
   }
 ];
 
-// Export the BASE_SUBSCRIPTION_PLANS as SUBSCRIPTION_PLANS for backward compatibility
 export const SUBSCRIPTION_PLANS = BASE_SUBSCRIPTION_PLANS;
 
 export type SubscriptionStatus = {
