@@ -26,7 +26,7 @@ export type SubscriptionPlan = {
 };
 
 // Base prices in USD
-const BASE_SUBSCRIPTION_PLANS = [
+export const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "free-trial",
     name: "3-Day Free Trial",

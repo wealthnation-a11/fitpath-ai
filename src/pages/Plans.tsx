@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePlans } from "@/context/PlanContext";
-import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
+import { usePayment, BASE_SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import Layout from "@/components/layout/Layout";
 import {
   Card,
@@ -33,17 +32,15 @@ const Plans = () => {
   const navigate = useNavigate();
 
   const [selectedDuration, setSelectedDuration] = useState<"7" | "14" | "21" | "30">("7");
-  const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
+  const [selectedPlan, setSelectedPlan] = useState(BASE_SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
 
-  // Redirect to login if not authenticated
   useEffect(() => {
     if (!user) {
       navigate("/login");
     }
   }, [user, navigate]);
 
-  // Check subscription status on load
   useEffect(() => {
     if (user) {
       checkSubscription();
@@ -57,10 +54,7 @@ const Plans = () => {
       return;
     }
 
-    // If the user doesn't have an active subscription or is on free trial,
-    // check if they've reached the limit
     if (!subscription.active && selectedPlan === "free-trial") {
-      // Simulate a free trial check - in a real app, this would be tracked in the database
       const existingPlans = JSON.parse(localStorage.getItem(`fitpath-plans-${user.id}`) || "[]");
       const freeTrialCount = existingPlans.length;
       
@@ -71,9 +65,8 @@ const Plans = () => {
     }
 
     try {
-      // If not on free trial, handle payment first
       if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
-        const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
+        const planObj = BASE_SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
         if (!planObj) {
           toast.error("Invalid plan selected");
           return;
@@ -81,8 +74,6 @@ const Plans = () => {
 
         try {
           await initiatePayment(planObj);
-          // Payment will be handled by the Paystack popup
-          // If successful, the subscription context will be updated
           return;
         } catch (error) {
           console.error("Payment failed:", error);
@@ -91,7 +82,6 @@ const Plans = () => {
         }
       }
 
-      // If we get here, either the user has an active subscription or is using the free trial
       setGenerating(true);
       const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
       const plan = await createPlan(duration);
@@ -176,7 +166,7 @@ const Plans = () => {
               onValueChange={setSelectedPlan}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             >
-              {SUBSCRIPTION_PLANS.map((plan) => (
+              {BASE_SUBSCRIPTION_PLANS.map((plan) => (
                 <div key={plan.id}>
                   <RadioGroupItem
                     value={plan.id}
