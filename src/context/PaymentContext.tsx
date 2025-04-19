@@ -63,6 +63,8 @@ export type SubscriptionStatus = {
   active: boolean;
   plan?: SubscriptionPlan;
   expiresAt?: string;
+  trialStartDate?: string; // Add trial start tracking
+  isTrialExpired?: boolean;
 };
 
 type PaymentContextType = {
@@ -248,20 +250,38 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      // In a real implementation, this would call your backend API
-      // For this mock, we'll check localStorage
       const storedSubscription = localStorage.getItem(`fitpath-subscription-${user.id}`);
       
       if (storedSubscription) {
         const parsedSubscription: SubscriptionStatus = JSON.parse(storedSubscription);
         
-        // Check if subscription has expired
+        // Check if this is a free trial
+        if (parsedSubscription.plan?.id === "free-trial") {
+          const trialStart = parsedSubscription.trialStartDate 
+            ? new Date(parsedSubscription.trialStartDate) 
+            : new Date();
+          const now = new Date();
+          const daysDiff = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
+          
+          // Check if trial has expired
+          if (daysDiff >= 3) {
+            const expiredSubscription = {
+              active: false,
+              isTrialExpired: true
+            };
+            
+            setSubscription(expiredSubscription);
+            localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(expiredSubscription));
+            return expiredSubscription;
+          }
+        }
+        
+        // Check if regular subscription has expired
         if (parsedSubscription.expiresAt) {
           const expiryDate = new Date(parsedSubscription.expiresAt);
           const now = new Date();
           
           if (expiryDate < now) {
-            // Subscription has expired
             const expiredSubscription = {
               active: false
             };
@@ -282,6 +302,78 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       return { active: false };
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGeneratePlan = async () => {
+    if (!user) {
+      toast.error("Please login to generate a plan");
+      navigate("/login");
+      return;
+    }
+
+    if (selectedPlan === "free-trial") {
+      const newTrialSubscription = {
+        active: true,
+        plan: SUBSCRIPTION_PLANS.find(p => p.id === "free-trial"),
+        trialStartDate: new Date().toISOString()
+      };
+      
+      localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(newTrialSubscription));
+      setSubscription(newTrialSubscription);
+    }
+
+    // If the user doesn't have an active subscription or is on free trial,
+    // check if they've reached the limit
+    if (!subscription.active && selectedPlan === "free-trial") {
+      // Simulate a free trial check - in a real app, this would be tracked in the database
+      const existingPlans = JSON.parse(localStorage.getItem(`fitpath-plans-${user.id}`) || "[]");
+      const freeTrialCount = existingPlans.length;
+      
+      if (freeTrialCount >= 1) {
+        toast.error("You have reached your free trial limit. Please upgrade to continue.");
+        return;
+      }
+    }
+
+    try {
+      // If not on free trial, handle payment first
+      if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
+        const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
+        if (!planObj) {
+          toast.error("Invalid plan selected");
+          return;
+        }
+
+        // Calculate the correct amount based on the currency rate
+        const localizedPlan = {
+          ...planObj,
+          amount: Math.round(planObj.baseAmount * currency.rate)
+        };
+
+        try {
+          await initiatePayment(localizedPlan);
+          // Payment will be handled by the Paystack popup
+          // If successful, the subscription context will be updated
+          return;
+        } catch (error) {
+          console.error("Payment failed:", error);
+          toast.error("Payment failed. Please try again.");
+          return;
+        }
+      }
+
+      // If we get here, either the user has an active subscription or is using the free trial
+      setGenerating(true);
+      const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+      const plan = await createPlan(duration);
+      toast.success("Plan generated successfully!");
+      navigate(`/plan/${plan.id}`);
+    } catch (error) {
+      console.error("Error generating plan:", error);
+      toast.error("Failed to generate plan. Please try again.");
+    } finally {
+      setGenerating(false);
     }
   };
 

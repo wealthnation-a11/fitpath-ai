@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
+import { Lock } from "lucide-react";
 
 const PlanDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +40,11 @@ const PlanDetail = () => {
   const [plan, setPlan] = useState<Plan | null>(null);
   
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
+  const isTrialUser = subscription.plan?.id === "free-trial";
+  const showRestrictedContent = (dayNumber: number) => {
+    if (!isTrialUser) return true;
+    return dayNumber <= 3; // Only show first 3 days for trial users
+  };
 
   useEffect(() => {
     if (!user) {
@@ -184,48 +190,69 @@ const PlanDetail = () => {
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
                   {plan.workouts.map((workout) => (
-                    <AccordionItem key={workout.day} value={`day-${workout.day}`}>
-                      <AccordionTrigger className="text-lg font-medium">
-                        Day {workout.day}
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <div className="space-y-6">
-                          <WorkoutSession 
-                            workoutName={`Day ${workout.day} Workout`}
-                            onFinish={handleWorkoutFinish}
-                          />
-                          {workout.exercises.map((exercise, index) => (
-                            <div
-                              key={index}
-                              className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-blue transition-colors"
-                            >
-                              <h4 className="font-medium text-fitpath-blue mb-4">
-                                {exercise.name}
-                              </h4>
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <WorkoutAnimation name={exercise.name} />
-                                <div className="space-y-2">
-                                  <div className="grid grid-cols-3 gap-2 text-sm">
-                                    <div>
-                                      <span className="text-muted-foreground">Sets:</span>{" "}
-                                      {exercise.sets}
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Reps:</span>{" "}
-                                      {exercise.reps}
-                                    </div>
-                                    <div>
-                                      <span className="text-muted-foreground">Rest:</span>{" "}
-                                      {exercise.rest}
+                    showRestrictedContent(workout.day) ? (
+                      <AccordionItem key={workout.day} value={`day-${workout.day}`}>
+                        <AccordionTrigger className="text-lg font-medium">
+                          Day {workout.day}
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="space-y-6">
+                            <WorkoutSession 
+                              workoutName={`Day ${workout.day} Workout`}
+                              onFinish={handleWorkoutFinish}
+                            />
+                            {workout.exercises.map((exercise, index) => (
+                              <div
+                                key={index}
+                                className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-blue transition-colors"
+                              >
+                                <h4 className="font-medium text-fitpath-blue mb-4">
+                                  {exercise.name}
+                                </h4>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                  <WorkoutAnimation name={exercise.name} />
+                                  <div className="space-y-2">
+                                    <div className="grid grid-cols-3 gap-2 text-sm">
+                                      <div>
+                                        <span className="text-muted-foreground">Sets:</span>{" "}
+                                        {exercise.sets}
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Reps:</span>{" "}
+                                        {exercise.reps}
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">Rest:</span>{" "}
+                                        {exercise.rest}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
+                            ))}
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ) : (
+                      <AccordionItem key={workout.day} value={`day-${workout.day}`}>
+                        <AccordionTrigger className="text-lg font-medium text-gray-400">
+                          Day {workout.day} <Lock className="ml-2 h-4 w-4" />
+                        </AccordionTrigger>
+                        <AccordionContent>
+                          <div className="p-4 text-center text-gray-500">
+                            <Lock className="mx-auto h-8 w-8 mb-2" />
+                            <p>Upgrade to access this day's workout plan</p>
+                            <Button
+                              onClick={() => navigate('/plans')}
+                              variant="outline"
+                              className="mt-2"
+                            >
+                              Upgrade Now
+                            </Button>
+                          </div>
+                        </AccordionContent>
+                      </AccordionItem>
+                    )
                   ))}
                 </Accordion>
               </CardContent>

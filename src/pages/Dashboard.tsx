@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Download, Eye, FilePlus, Clock } from "lucide-react";
 import { format } from "date-fns";
+import { TrialStatus } from "@/components/trial/TrialStatus";
 
 const Dashboard = () => {
   const { user, loading: userLoading } = useAuth();
@@ -126,6 +127,8 @@ const Dashboard = () => {
         </div>
 
         <ProgressSection />
+
+        <TrialStatus />
 
         <Tabs defaultValue="plans" className="space-y-6">
           <TabsList>
