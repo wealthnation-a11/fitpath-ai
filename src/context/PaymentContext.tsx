@@ -1,43 +1,57 @@
-
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { PAYSTACK_PUBLIC_KEY } from "@/utils/env";
 import { toast } from "sonner";
 
+export type Currency = {
+  code: string;
+  symbol: string;
+  rate: number; // Exchange rate relative to USD
+};
+
+export const SUPPORTED_CURRENCIES: { [key: string]: Currency } = {
+  USD: { code: "USD", symbol: "$", rate: 1 },
+  NGN: { code: "NGN", symbol: "₦", rate: 780 }, // 780 NGN = 1 USD
+  GBP: { code: "GBP", symbol: "£", rate: 0.79 }, // 0.79 GBP = 1 USD
+  EUR: { code: "EUR", symbol: "€", rate: 0.92 }, // 0.92 EUR = 1 USD
+};
+
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  amount: number; // in kobo
+  baseAmount: number; // Base amount in USD cents
+  amount: number; // Amount in local currency (cents/kobo)
   duration: number; // in days
   description: string;
 };
 
-export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+// Base prices in USD
+const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "free-trial",
     name: "3-Day Free Trial",
-    amount: 0,
+    baseAmount: 0,
     duration: 3,
     description: "Try FitPath AI for free for 3 days"
   },
   {
     id: "monthly",
     name: "Monthly Plan",
-    amount: 780000, // ₦7,800 (converted from $5)
+    baseAmount: 500, // $5 USD
     duration: 30,
     description: "30 days of personalized fitness and meal plans"
   },
   {
     id: "semi-annual",
     name: "6 Months Plan",
-    amount: 3900000, // ₦39,000 (converted from $25)
+    baseAmount: 2500, // $25 USD
     duration: 180,
     description: "6 months of personalized fitness and meal plans"
   },
   {
     id: "annual",
     name: "Annual Plan",
-    amount: 7600000, // ₦76,000 (converted from $49)
+    baseAmount: 4900, // $49 USD
     duration: 365,
     description: "12 months of personalized fitness and meal plans"
   }
@@ -54,6 +68,7 @@ type PaymentContextType = {
   loading: boolean;
   error: string | null;
   plans: SubscriptionPlan[];
+  currency: Currency;
   initiatePayment: (plan: SubscriptionPlan) => Promise<void>;
   verifyPayment: (reference: string) => Promise<boolean>;
   checkSubscription: () => Promise<SubscriptionStatus>;
@@ -68,8 +83,42 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currency, setCurrency] = useState<Currency>(SUPPORTED_CURRENCIES.USD);
 
-  // In a real implementation, this would make a call to Paystack API
+  useEffect(() => {
+    const detectUserCurrency = async () => {
+      try {
+        const response = await fetch('https://ipapi.co/json/');
+        const data = await response.json();
+        const countryCode = data.country_code;
+        
+        // Map country codes to currencies
+        const currencyMap: { [key: string]: string } = {
+          NG: 'NGN',
+          US: 'USD',
+          GB: 'GBP',
+          // Add more country to currency mappings as needed
+          // Default to USD for unsupported countries
+        };
+
+        const currencyCode = currencyMap[countryCode] || 'USD';
+        setCurrency(SUPPORTED_CURRENCIES[currencyCode]);
+      } catch (error) {
+        console.error('Error detecting location:', error);
+        // Default to USD if location detection fails
+        setCurrency(SUPPORTED_CURRENCIES.USD);
+      }
+    };
+
+    detectUserCurrency();
+  }, []);
+
+  // Calculate prices in local currency
+  const plans = BASE_SUBSCRIPTION_PLANS.map(plan => ({
+    ...plan,
+    amount: Math.round(plan.baseAmount * currency.rate)
+  }));
+
   const initiatePayment = async (plan: SubscriptionPlan) => {
     if (!user) {
       throw new Error("You must be logged in to make a payment");
@@ -171,7 +220,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       // In a real implementation, this would call your backend API
-      // which would then verify the transaction with Paystack
       // For this mock, we'll simulate a successful verification
       
       console.log(`Verifying payment with reference: ${reference}`);
@@ -241,7 +289,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         subscription,
         loading,
         error,
-        plans: SUBSCRIPTION_PLANS,
+        plans,
+        currency,
         initiatePayment,
         verifyPayment,
         checkSubscription
