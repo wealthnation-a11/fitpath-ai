@@ -28,6 +28,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { WorkoutSession } from "@/components/workout/WorkoutSession";
 
 const PlanDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -116,6 +117,10 @@ const PlanDetail = () => {
     toast.info("Upgrade to a premium plan to download your fitness plans");
   };
 
+  const handleWorkoutFinish = (duration: number) => {
+    toast.success(`Workout completed! Duration: ${Math.floor(duration / 60)} minutes ${duration % 60} seconds`);
+  };
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
@@ -185,6 +190,10 @@ const PlanDetail = () => {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-6">
+                          <WorkoutSession 
+                            workoutName={`Day ${workout.day} Workout`}
+                            onFinish={handleWorkoutFinish}
+                          />
                           {workout.exercises.map((exercise, index) => (
                             <div
                               key={index}
