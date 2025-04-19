@@ -2,7 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
-import { BASE_SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
+import { ArrowRight, Check, Dumbbell, Brain, Calendar } from "lucide-react";
+import { SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import {
   Carousel,
   CarouselContent,
@@ -149,7 +150,7 @@ const Home = () => {
             Choose the plan that works best for you
           </p>
           <div className="grid md:grid-cols-4 gap-8">
-            {BASE_SUBSCRIPTION_PLANS.map((plan) => (
+            {SUBSCRIPTION_PLANS.map((plan) => (
               <div
                 key={plan.id}
                 className={`bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ${
