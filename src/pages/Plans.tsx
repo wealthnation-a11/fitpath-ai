@@ -29,7 +29,15 @@ import { toast } from "sonner";
 const Plans = () => {
   const { user } = useAuth();
   const { createPlan, loading: planLoading } = usePlans();
-  const { subscription, initiatePayment, checkSubscription, startFreeTrial, loading: paymentLoading, currency } = usePayment();
+  const { 
+    subscription, 
+    initiatePayment, 
+    checkSubscription, 
+    startFreeTrial, 
+    loading: paymentLoading, 
+    currency,
+    formatPrice 
+  } = usePayment();
   const navigate = useNavigate();
 
   const [selectedDuration, setSelectedDuration] = useState<"7" | "14" | "21" | "30">("7");
@@ -78,14 +86,9 @@ const Plans = () => {
         return;
       }
 
-      // Calculate the correct amount based on the currency rate
-      const localizedPlan = {
-        ...planObj,
-        amount: Math.round(planObj.baseAmount * currency.rate)
-      };
-
       try {
-        await initiatePayment(localizedPlan);
+        // Pass the plan directly without recalculating - ensures consistency
+        await initiatePayment(planObj);
         // Payment will be handled by the Paystack popup
         // If successful, the subscription context will be updated
         return;
@@ -206,7 +209,7 @@ const Plans = () => {
                     )}
                     <span className="font-medium mb-1">{plan.name}</span>
                     <span className="text-2xl font-bold mb-1">
-                      {plan.baseAmount === 0 ? "Free" : `₦${plan.baseAmount / 100}`}
+                      {plan.baseAmount === 0 ? "Free" : formatPrice(plan.baseAmount)}
                     </span>
                     <span className="text-sm text-muted-foreground mb-2">
                       {plan.description}

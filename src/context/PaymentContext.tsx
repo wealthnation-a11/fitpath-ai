@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { PAYSTACK_PUBLIC_KEY } from "@/utils/env";
@@ -12,7 +11,7 @@ export type Currency = {
 
 export const SUPPORTED_CURRENCIES: { [key: string]: Currency } = {
   USD: { code: "USD", symbol: "$", rate: 1 },
-  NGN: { code: "NGN", symbol: "₦", rate: 780 }, // 780 NGN = 1 USD
+  NGN: { code: "NGN", symbol: "₦", rate: 1 }, // Base currency for the app
   GBP: { code: "GBP", symbol: "£", rate: 0.79 }, // 0.79 GBP = 1 USD
   EUR: { code: "EUR", symbol: "€", rate: 0.92 }, // 0.92 EUR = 1 USD
 };
@@ -20,13 +19,13 @@ export const SUPPORTED_CURRENCIES: { [key: string]: Currency } = {
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  baseAmount: number; // Base amount in USD cents
-  amount: number; // Amount in local currency (cents/kobo)
+  baseAmount: number; // Base amount in NGN kobo (smallest unit)
+  amount: number; // Amount in local currency (smallest unit)
   duration: number; // in days
   description: string;
 };
 
-// Base prices in USD and NGN
+// Centralized pricing in NGN (kobo)
 const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "free-trial",
@@ -67,7 +66,7 @@ export type SubscriptionStatus = {
   active: boolean;
   plan?: SubscriptionPlan;
   expiresAt?: string;
-  trialStartDate?: string; // Add trial start tracking
+  trialStartDate?: string;
   isTrialExpired?: boolean;
 };
 
@@ -80,7 +79,8 @@ type PaymentContextType = {
   initiatePayment: (plan: SubscriptionPlan) => Promise<void>;
   verifyPayment: (reference: string) => Promise<boolean>;
   checkSubscription: () => Promise<SubscriptionStatus>;
-  startFreeTrial: () => void; // New function to start a free trial
+  startFreeTrial: () => void;
+  formatPrice: (amount: number) => string; // Add helper function to format prices
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
@@ -92,7 +92,14 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currency, setCurrency] = useState<Currency>(SUPPORTED_CURRENCIES.USD);
+  const [currency, setCurrency] = useState<Currency>(SUPPORTED_CURRENCIES.NGN); // Default to NGN
+
+  // Helper function to format prices consistently with currency symbol
+  const formatPrice = (amount: number): string => {
+    // Convert from smallest unit (kobo/cents) to main unit (Naira/dollars)
+    const mainUnitAmount = amount / 100;
+    return `${currency.symbol}${mainUnitAmount.toLocaleString('en-NG')}`;
+  };
 
   useEffect(() => {
     const detectUserCurrency = async () => {
@@ -101,31 +108,36 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         const data = await response.json();
         const countryCode = data.country_code;
         
-        // Map country codes to currencies
-        const currencyMap: { [key: string]: string } = {
-          NG: 'NGN',
-          US: 'USD',
-          GB: 'GBP',
-          // Add more country to currency mappings as needed
-          // Default to USD for unsupported countries
-        };
-
-        const currencyCode = currencyMap[countryCode] || 'USD';
-        setCurrency(SUPPORTED_CURRENCIES[currencyCode]);
+        // For this app, we're standardizing on NGN regardless of location
+        // This ensures pricing consistency across the app
+        setCurrency(SUPPORTED_CURRENCIES.NGN);
+        
+        // Update plan amounts based on currency
+        updatePlanAmounts(SUPPORTED_CURRENCIES.NGN);
       } catch (error) {
         console.error('Error detecting location:', error);
-        // Default to USD if location detection fails
-        setCurrency(SUPPORTED_CURRENCIES.USD);
+        // Default to NGN if location detection fails
+        setCurrency(SUPPORTED_CURRENCIES.NGN);
+        updatePlanAmounts(SUPPORTED_CURRENCIES.NGN);
       }
     };
 
     detectUserCurrency();
   }, []);
 
+  // Update plan amounts based on selected currency
+  const updatePlanAmounts = (selectedCurrency: Currency) => {
+    // Since we're now using NGN as base currency, we don't need to convert
+    // Just ensure the amount is set correctly
+    SUBSCRIPTION_PLANS.forEach(plan => {
+      plan.amount = plan.baseAmount;
+    });
+  };
+
   // Calculate prices in local currency
-  const plans = BASE_SUBSCRIPTION_PLANS.map(plan => ({
+  const plans = SUBSCRIPTION_PLANS.map(plan => ({
     ...plan,
-    amount: Math.round(plan.baseAmount * currency.rate)
+    amount: plan.baseAmount // No conversion needed as we're using NGN directly
   }));
 
   const initiatePayment = async (plan: SubscriptionPlan) => {
@@ -345,7 +357,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         initiatePayment,
         verifyPayment,
         checkSubscription,
-        startFreeTrial
+        startFreeTrial,
+        formatPrice
       }}
     >
       {children}

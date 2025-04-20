@@ -2,8 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
+import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
-import { SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import {
   Carousel,
   CarouselContent,
@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { formatPrice } = usePayment();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
@@ -162,7 +163,7 @@ const Home = () => {
                 <h3 className="text-xl font-semibold text-center mb-2">{plan.name}</h3>
                 <div className="text-center mb-4">
                   <span className="text-3xl font-bold">
-                    {plan.baseAmount === 0 ? "Free" : `₦${plan.baseAmount / 100}`}
+                    {plan.baseAmount === 0 ? "Free" : formatPrice(plan.baseAmount)}
                   </span>
                   {plan.baseAmount > 0 && (
                     <span className="text-gray-600"> / {plan.id === "monthly" ? "month" : plan.id}</span>
