@@ -1,5 +1,4 @@
-# Welcome to your Lovable project
-
+# Welcome to Fitpath AI
 ## Project info
 
 **URL**: https://lovable.dev/projects/a52be764-9947-4686-848e-dfc064244482
