@@ -1,31 +1,32 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { PAYSTACK_PUBLIC_KEY } from "@/utils/env";
 import { toast } from "sonner";
 
 export type Currency = {
   code: string;
   symbol: string;
-  rate: number; // Exchange rate relative to USD
+  rate: number;
 };
 
 export const SUPPORTED_CURRENCIES: { [key: string]: Currency } = {
   USD: { code: "USD", symbol: "$", rate: 1 },
-  NGN: { code: "NGN", symbol: "₦", rate: 1 }, // Base currency for the app
-  GBP: { code: "GBP", symbol: "£", rate: 0.79 }, // 0.79 GBP = 1 USD
-  EUR: { code: "EUR", symbol: "€", rate: 0.92 }, // 0.92 EUR = 1 USD
+  NGN: { code: "NGN", symbol: "₦", rate: 1 },
+  GBP: { code: "GBP", symbol: "£", rate: 0.79 },
+  EUR: { code: "EUR", symbol: "€", rate: 0.92 },
 };
 
 export type SubscriptionPlan = {
   id: string;
   name: string;
-  baseAmount: number; // Base amount in NGN kobo (smallest unit)
-  amount: number; // Amount in local currency (smallest unit)
-  duration: number; // in days
+  baseAmount: number;
+  amount: number;
+  duration: number;
   description: string;
 };
 
-// Centralized pricing in NGN (kobo)
 const BASE_SUBSCRIPTION_PLANS = [
   {
     id: "free-trial",
@@ -59,7 +60,7 @@ const BASE_SUBSCRIPTION_PLANS = [
 
 export const SUBSCRIPTION_PLANS = BASE_SUBSCRIPTION_PLANS.map(plan => ({
   ...plan,
-  amount: plan.baseAmount // Initialize with same value, will be adjusted based on currency
+  amount: plan.baseAmount
 }));
 
 export type SubscriptionStatus = {
@@ -80,68 +81,36 @@ type PaymentContextType = {
   verifyPayment: (reference: string) => Promise<boolean>;
   checkSubscription: () => Promise<SubscriptionStatus>;
   startFreeTrial: () => void;
-  formatPrice: (amount: number) => string; // Add helper function to format prices
+  formatPrice: (amount: number) => string;
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
 
 export const PaymentProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionStatus>({
     active: false
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currency, setCurrency] = useState<Currency>(SUPPORTED_CURRENCIES.NGN); // Default to NGN
+  const [currency, setCurrency] = useState<Currency>(SUPPORTED_CURRENCIES.NGN);
 
-  // Helper function to format prices consistently with currency symbol
   const formatPrice = (amount: number): string => {
-    // Convert from smallest unit (kobo/cents) to main unit (Naira/dollars)
     const mainUnitAmount = amount / 100;
     return `${currency.symbol}${mainUnitAmount.toLocaleString('en-NG')}`;
   };
 
   useEffect(() => {
-    const detectUserCurrency = async () => {
-      try {
-        const response = await fetch('https://ipapi.co/json/');
-        const data = await response.json();
-        const countryCode = data.country_code;
-        
-        // For this app, we're standardizing on NGN regardless of location
-        // This ensures pricing consistency across the app
-        setCurrency(SUPPORTED_CURRENCIES.NGN);
-        
-        // Update plan amounts based on currency
-        updatePlanAmounts(SUPPORTED_CURRENCIES.NGN);
-      } catch (error) {
-        console.error('Error detecting location:', error);
-        // Default to NGN if location detection fails
-        setCurrency(SUPPORTED_CURRENCIES.NGN);
-        updatePlanAmounts(SUPPORTED_CURRENCIES.NGN);
-      }
-    };
-
-    detectUserCurrency();
+    setCurrency(SUPPORTED_CURRENCIES.NGN);
   }, []);
 
-  // Update plan amounts based on selected currency
-  const updatePlanAmounts = (selectedCurrency: Currency) => {
-    // Since we're now using NGN as base currency, we don't need to convert
-    // Just ensure the amount is set correctly
-    SUBSCRIPTION_PLANS.forEach(plan => {
-      plan.amount = plan.baseAmount;
-    });
-  };
-
-  // Calculate prices in local currency
   const plans = SUBSCRIPTION_PLANS.map(plan => ({
     ...plan,
-    amount: plan.baseAmount // No conversion needed as we're using NGN directly
+    amount: plan.baseAmount
   }));
 
   const initiatePayment = async (plan: SubscriptionPlan) => {
-    if (!user) {
+    if (!user || !session) {
       throw new Error("You must be logged in to make a payment");
     }
     
@@ -149,13 +118,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      // In a real implementation, this would make a backend call to initialize Paystack
-      // Using the public key on the frontend and the secret key on the backend
       const paystackPublicKey = PAYSTACK_PUBLIC_KEY;
       
-      // Check if Paystack is loaded
       if (typeof window.PaystackPop === 'undefined') {
-        // Wait for Paystack to load (max 5 seconds)
         await new Promise<void>((resolve, reject) => {
           let attempts = 0;
           const checkPaystack = setInterval(() => {
@@ -163,7 +128,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
             if (typeof window.PaystackPop !== 'undefined') {
               clearInterval(checkPaystack);
               resolve();
-            } else if (attempts >= 50) { // 5 seconds (100ms * 50)
+            } else if (attempts >= 50) {
               clearInterval(checkPaystack);
               reject(new Error("Paystack failed to load. Please refresh the page and try again."));
             }
@@ -171,46 +136,64 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         });
       }
       
-      // Ensure Paystack is available
       if (typeof window.PaystackPop === 'undefined') {
         throw new Error("Paystack not available. Please check your internet connection and refresh the page.");
       }
       
-      // Generate a unique reference
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       
-      // Initialize Paystack
       const handler = window.PaystackPop.setup({
         key: paystackPublicKey,
         email: user.email,
-        amount: plan.amount, // in kobo
+        amount: plan.amount,
         currency: 'NGN',
         ref: reference,
-        callback: (response: any) => {
+        callback: async (response: any) => {
           console.log("Payment successful. Reference:", response.reference);
           toast.success("Payment successful! Verifying your subscription...");
           
-          // Verify payment
-          verifyPayment(response.reference)
-            .then((success) => {
-              if (success) {
-                // Update subscription
-                const expiryDate = new Date();
-                expiryDate.setDate(expiryDate.getDate() + plan.duration);
-                
-                const newSubscription: SubscriptionStatus = {
-                  active: true,
-                  plan,
-                  expiresAt: expiryDate.toISOString()
-                };
-                
-                setSubscription(newSubscription);
-                localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(newSubscription));
-                toast.success(`Subscription activated: ${plan.name}`);
-              } else {
-                toast.error("Payment verification failed. Please contact support.");
+          try {
+            const success = await verifyPayment(response.reference);
+            if (success) {
+              const expiryDate = new Date();
+              expiryDate.setDate(expiryDate.getDate() + plan.duration);
+              
+              // Save to Supabase subscribers table
+              const { error: insertError } = await supabase
+                .from('subscribers')
+                .upsert({
+                  user_id: session.user.id,
+                  email: user.email,
+                  subscribed: true,
+                  subscription_tier: plan.id,
+                  subscription_end: expiryDate.toISOString(),
+                  plan_duration: plan.duration,
+                  amount_paid: plan.amount,
+                  currency: 'NGN',
+                  payment_reference: response.reference
+                });
+
+              if (insertError) {
+                console.error("Error saving subscription:", insertError);
+                toast.error("Payment successful but failed to save subscription. Please contact support.");
+                return;
               }
-            });
+              
+              const newSubscription: SubscriptionStatus = {
+                active: true,
+                plan,
+                expiresAt: expiryDate.toISOString()
+              };
+              
+              setSubscription(newSubscription);
+              toast.success(`Subscription activated: ${plan.name}`);
+            } else {
+              toast.error("Payment verification failed. Please contact support.");
+            }
+          } catch (err) {
+            console.error("Error in payment callback:", err);
+            toast.error("Payment processing error. Please contact support.");
+          }
         },
         onClose: () => {
           toast.info("Payment window closed");
@@ -229,10 +212,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // In a real implementation, this would make a call to your backend API
-  // which would verify the transaction with Paystack using the secret key
   const verifyPayment = async (reference: string): Promise<boolean> => {
-    if (!user) {
+    if (!user || !session) {
       throw new Error("You must be logged in");
     }
     
@@ -240,15 +221,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      // In a real implementation, this would call your backend API
-      // For this mock, we'll simulate a successful verification
-      
       console.log(`Verifying payment with reference: ${reference}`);
-      
-      // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // For demo purposes, we'll assume the payment was successful
       return true;
     } catch (err: any) {
       setError(err.message);
@@ -258,21 +232,50 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Check if the user has an active subscription
   const checkSubscription = async (): Promise<SubscriptionStatus> => {
-    if (!user) {
+    if (!user || !session) {
       return { active: false };
     }
     
     setLoading(true);
     
     try {
+      // Check Supabase subscribers table first
+      const { data: subscriber, error } = await supabase
+        .from('subscribers')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('subscribed', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error("Error fetching subscription:", error);
+      }
+
+      if (subscriber && subscriber.subscription_end) {
+        const expiryDate = new Date(subscriber.subscription_end);
+        const now = new Date();
+        
+        if (expiryDate > now) {
+          const plan = plans.find(p => p.id === subscriber.subscription_tier);
+          const activeSubscription = {
+            active: true,
+            plan,
+            expiresAt: subscriber.subscription_end
+          };
+          setSubscription(activeSubscription);
+          return activeSubscription;
+        }
+      }
+
+      // Fallback to localStorage for trial and legacy data
       const storedSubscription = localStorage.getItem(`fitpath-subscription-${user.id}`);
       
       if (storedSubscription) {
         const parsedSubscription: SubscriptionStatus = JSON.parse(storedSubscription);
         
-        // Check if this is a free trial
         if (parsedSubscription.plan?.id === "free-trial") {
           const trialStart = parsedSubscription.trialStartDate 
             ? new Date(parsedSubscription.trialStartDate) 
@@ -280,7 +283,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
           const now = new Date();
           const daysDiff = Math.floor((now.getTime() - trialStart.getTime()) / (1000 * 60 * 60 * 24));
           
-          // Check if trial has expired
           if (daysDiff >= 3) {
             const expiredSubscription = {
               active: false,
@@ -288,23 +290,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
             };
             
             setSubscription(expiredSubscription);
-            localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(expiredSubscription));
-            return expiredSubscription;
-          }
-        }
-        
-        // Check if regular subscription has expired
-        if (parsedSubscription.expiresAt) {
-          const expiryDate = new Date(parsedSubscription.expiresAt);
-          const now = new Date();
-          
-          if (expiryDate < now) {
-            const expiredSubscription = {
-              active: false
-            };
-            
-            setSubscription(expiredSubscription);
-            localStorage.setItem(`fitpath-subscription-${user.id}`, JSON.stringify(expiredSubscription));
             return expiredSubscription;
           }
         }
@@ -315,6 +300,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       
       return { active: false };
     } catch (err: any) {
+      console.error("Error checking subscription:", err);
       setError(err.message);
       return { active: false };
     } finally {
@@ -322,7 +308,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // New function to start a free trial
   const startFreeTrial = () => {
     if (!user) {
       toast.error("Please login to start a free trial");

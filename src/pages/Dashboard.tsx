@@ -37,14 +37,15 @@ const Dashboard = () => {
     const checkSubscriptionStatus = async () => {
       const subscriptionStatus = await checkSubscription();
       
-      // Redirect to pricing page if trial has expired
       if (subscriptionStatus.isTrialExpired) {
         navigate("/plans");
       }
     };
     
-    checkSubscriptionStatus();
-  }, [checkSubscription, navigate]);
+    if (user) {
+      checkSubscriptionStatus();
+    }
+  }, [checkSubscription, navigate, user]);
 
   if (userLoading || plansLoading || !user) {
     return (
@@ -76,7 +77,6 @@ const Dashboard = () => {
   };
 
   const handleDownloadPlan = (plan: Plan) => {
-    // Check if user is on trial - if so, redirect to plans page
     if (subscription.plan?.id === "free-trial") {
       navigate("/plans");
       return;
@@ -97,9 +97,10 @@ const Dashboard = () => {
     for (const meal of plan.meals) {
       content += `\nDay ${meal.day}:\n`;
       content += `Breakfast: ${meal.breakfast}\n`;
+      content += `Mid-Morning Snack: ${meal.midMorningSnack}\n`;
       content += `Lunch: ${meal.lunch}\n`;
+      content += `Afternoon Snack: ${meal.afternoonSnack}\n`;
       content += `Dinner: ${meal.dinner}\n`;
-      content += `Snacks: ${meal.snacks.join(", ")}\n`;
     }
     
     const blob = new Blob([content], { type: "text/plain" });
