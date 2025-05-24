@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Activity, Flame, Timer, Trophy } from "lucide-react";
+import { getDailyQuote } from "@/utils/dailyQuotes";
 
 interface ProgressData {
   streak: number;
@@ -20,16 +21,8 @@ const DEFAULT_PROGRESS: ProgressData = {
   lastWorkout: '',
 };
 
-const MOTIVATIONAL_QUOTES = [
-  "You're doing amazing, keep going!",
-  "Every rep counts, stay focused!",
-  "Progress is progress, no matter how small!",
-  "Keep pushing, you're getting stronger!",
-];
-
 export const ProgressSection = () => {
   const [progress, setProgress] = useState<ProgressData>(DEFAULT_PROGRESS);
-  const [quote, setQuote] = useState("");
 
   useEffect(() => {
     // Load progress from localStorage
@@ -37,19 +30,11 @@ export const ProgressSection = () => {
     if (savedProgress) {
       setProgress(JSON.parse(savedProgress));
     }
-
-    // Set random motivational quote
-    setQuote(MOTIVATIONAL_QUOTES[Math.floor(Math.random() * MOTIVATIONAL_QUOTES.length)]);
   }, []);
 
   return (
     <div className="space-y-4 animate-fade-in">
       <h2 className="text-2xl font-bold tracking-tight">Track My Progress</h2>
-      
-      {/* Motivational Quote */}
-      <div className="bg-primary/5 p-4 rounded-lg border border-primary/10">
-        <p className="text-lg font-medium text-primary italic">{quote}</p>
-      </div>
 
       {/* Progress Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

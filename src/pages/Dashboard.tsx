@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePlans, Plan } from "@/context/PlanContext";
 import { usePayment } from "@/context/PaymentContext";
+import { getDailyQuote, getFirstName } from "@/utils/dailyQuotes";
 import Layout from "@/components/layout/Layout";
 import { ProgressSection } from "@/components/progress/ProgressSection";
 import {
@@ -17,7 +18,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Download, Eye, FilePlus, Clock } from "lucide-react";
+import { Download, Eye, FilePlus, Clock, Quote } from "lucide-react";
 import { format } from "date-fns";
 import { TrialStatus } from "@/components/trial/TrialStatus";
 
@@ -114,13 +115,16 @@ const Dashboard = () => {
     URL.revokeObjectURL(url);
   };
 
+  const dailyQuote = getDailyQuote();
+  const firstName = getFirstName(user.name);
+
   return (
     <Layout>
       <div className="space-y-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              Welcome back, {user.name}!
+              Hello {firstName}! 👋
             </h1>
             <p className="text-muted-foreground">
               Here's an overview of your fitness journey
@@ -142,6 +146,26 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+
+        {/* Daily Motivational Quote */}
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 bg-primary/10 rounded-full">
+                <Quote className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-primary mb-2">Daily Motivation</h3>
+                <p className="text-lg italic text-foreground leading-relaxed">
+                  "{dailyQuote}"
+                </p>
+                <p className="text-sm text-muted-foreground mt-3">
+                  {format(new Date(), "EEEE, MMMM d, yyyy")}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <ProgressSection />
 
