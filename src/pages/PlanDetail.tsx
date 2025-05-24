@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans, Plan } from "@/context/PlanContext";
@@ -33,6 +32,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
 import { TrialStatus } from "@/components/trial/TrialStatus";
+import { MealTracker } from "@/components/meal/MealTracker";
 
 const PlanDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -148,8 +148,8 @@ const PlanDetail = () => {
     toast.info("Upgrade to a premium plan to unlock all features");
   };
 
-  const handleWorkoutFinish = (duration: number) => {
-    toast.success(`Workout completed! Duration: ${Math.floor(duration / 60)} minutes ${duration % 60} seconds`);
+  const handleWorkoutFinish = (duration: number, caloriesBurned: number) => {
+    toast.success(`Workout completed! Duration: ${Math.floor(duration / 60)} minutes ${duration % 60} seconds. Calories burned: ${caloriesBurned}`);
   };
 
   return (
@@ -211,6 +211,8 @@ const PlanDetail = () => {
                           <div className="space-y-6">
                             <WorkoutSession 
                               workoutName={`Day ${workout.day} Workout`}
+                              exercises={workout.exercises}
+                              dayNumber={workout.day}
                               onFinish={handleWorkoutFinish}
                             />
                             {workout.exercises.map((exercise, index) => (
@@ -292,6 +294,8 @@ const PlanDetail = () => {
                       <AccordionContent>
                         {showRestrictedContent(meal.day) ? (
                           <div className="space-y-4">
+                            <MealTracker dayNumber={meal.day} meals={meal} />
+                            
                             <div className="p-4 border rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 hover:border-fitpath-green transition-colors">
                               <h4 className="font-medium text-fitpath-green flex items-center">
                                 🌅 Breakfast
