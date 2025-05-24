@@ -31,12 +31,6 @@ import {
 import { Download, ArrowLeft, Lock, Info } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
 import { TrialStatus } from "@/components/trial/TrialStatus";
 
@@ -126,26 +120,27 @@ const PlanDetail = () => {
       }
     }
     
-    content += "\n\nMEAL PLAN:\n";
+    content += "\n\nNIGERIAN MEAL PLAN (5 MEALS PER DAY):\n";
     for (const meal of plan.meals) {
       content += `\nDay ${meal.day}:\n`;
       content += `Breakfast: ${meal.breakfast}\n`;
+      content += `Mid-Morning Snack: ${meal.midMorningSnack}\n`;
       content += `Lunch: ${meal.lunch}\n`;
+      content += `Afternoon Snack: ${meal.afternoonSnack}\n`;
       content += `Dinner: ${meal.dinner}\n`;
-      content += `Snacks: ${meal.snacks.join(", ")}\n`;
     }
     
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `fitpath-plan-${plan.id}.txt`;
+    a.download = `fitpath-nigerian-plan-${plan.id}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success("Plan downloaded successfully!");
+    toast.success("Nigerian meal plan downloaded successfully!");
   };
 
   const handleUpgradeClick = () => {
@@ -174,7 +169,7 @@ const PlanDetail = () => {
             </Button>
             <h1 className="text-3xl font-bold">{plan.name}</h1>
             <p className="text-muted-foreground">
-              Created on {formatDate(plan.createdAt)} • {plan.duration} days
+              Created on {formatDate(plan.createdAt)} • {plan.duration} days • Nigerian Cuisine
             </p>
           </div>
           
@@ -190,7 +185,7 @@ const PlanDetail = () => {
         <Tabs defaultValue="workouts" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="workouts">Workouts</TabsTrigger>
-            <TabsTrigger value="meals">Meal Plan</TabsTrigger>
+            <TabsTrigger value="meals">Nigerian Meal Plan</TabsTrigger>
           </TabsList>
 
           <TabsContent value="workouts" className="space-y-4">
@@ -276,7 +271,10 @@ const PlanDetail = () => {
           <TabsContent value="meals" className="space-y-4">
             <Card className="shadow-soft rounded-2xl card-hover border-t-4 border-t-fitpath-green">
               <CardHeader>
-                <CardTitle>Your Meal Plan</CardTitle>
+                <CardTitle>Your Nigerian Meal Plan</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  5 balanced meals per day featuring authentic Nigerian cuisine and seasonal ingredients
+                </p>
               </CardHeader>
               <CardContent>
                 <Accordion type="single" collapsible className="w-full">
@@ -294,28 +292,39 @@ const PlanDetail = () => {
                       <AccordionContent>
                         {showRestrictedContent(meal.day) ? (
                           <div className="space-y-4">
-                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                              <h4 className="font-medium text-fitpath-green">Breakfast</h4>
-                              <p className="mt-1">{meal.breakfast}</p>
+                            <div className="p-4 border rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 hover:border-fitpath-green transition-colors">
+                              <h4 className="font-medium text-fitpath-green flex items-center">
+                                🌅 Breakfast
+                              </h4>
+                              <p className="mt-1 text-gray-700">{meal.breakfast}</p>
                             </div>
 
-                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                              <h4 className="font-medium text-fitpath-green">Lunch</h4>
-                              <p className="mt-1">{meal.lunch}</p>
+                            <div className="p-4 border rounded-xl bg-gradient-to-r from-blue-50 to-cyan-50 hover:border-blue-400 transition-colors">
+                              <h4 className="font-medium text-blue-600 flex items-center">
+                                🥜 Mid-Morning Snack
+                              </h4>
+                              <p className="mt-1 text-gray-700">{meal.midMorningSnack}</p>
                             </div>
 
-                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                              <h4 className="font-medium text-fitpath-green">Dinner</h4>
-                              <p className="mt-1">{meal.dinner}</p>
+                            <div className="p-4 border rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 hover:border-orange-400 transition-colors">
+                              <h4 className="font-medium text-orange-600 flex items-center">
+                                🍽️ Lunch
+                              </h4>
+                              <p className="mt-1 text-gray-700">{meal.lunch}</p>
                             </div>
 
-                            <div className="p-4 border rounded-xl bg-gray-50 hover:border-fitpath-green transition-colors">
-                              <h4 className="font-medium text-fitpath-green">Snacks</h4>
-                              <ul className="mt-1 list-disc list-inside">
-                                {meal.snacks.map((snack, index) => (
-                                  <li key={index}>{snack}</li>
-                                ))}
-                              </ul>
+                            <div className="p-4 border rounded-xl bg-gradient-to-r from-purple-50 to-pink-50 hover:border-purple-400 transition-colors">
+                              <h4 className="font-medium text-purple-600 flex items-center">
+                                🍇 Afternoon Snack
+                              </h4>
+                              <p className="mt-1 text-gray-700">{meal.afternoonSnack}</p>
+                            </div>
+
+                            <div className="p-4 border rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 hover:border-indigo-400 transition-colors">
+                              <h4 className="font-medium text-indigo-600 flex items-center">
+                                🌙 Dinner
+                              </h4>
+                              <p className="mt-1 text-gray-700">{meal.dinner}</p>
                             </div>
                           </div>
                         ) : (
@@ -324,7 +333,7 @@ const PlanDetail = () => {
                               <Lock className="mx-auto h-12 w-12 text-amber-500 mb-3" />
                               <h3 className="text-lg font-semibold text-amber-800 mb-2">Premium Content Locked</h3>
                               <p className="text-amber-700 mb-4">
-                                Upgrade to unlock access to this day's meal plan and all premium features.
+                                Upgrade to unlock access to this day's Nigerian meal plan and all premium features.
                               </p>
                               <Button
                                 onClick={handleUpgradeClick}

@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 
@@ -19,9 +18,10 @@ export type Plan = {
   meals: Array<{
     day: number;
     breakfast: string;
+    midMorningSnack: string;
     lunch: string;
+    afternoonSnack: string;
     dinner: string;
-    snacks: string[];
   }>;
 };
 
@@ -36,80 +36,98 @@ type PlanContextType = {
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
 
-// Database of meals for variety
+// Nigerian-focused meal database for variety throughout the year
 const breakfastOptions = [
-  "Oatmeal with fruits and nuts",
-  "Greek yogurt with berries and honey",
-  "Avocado toast with poached eggs",
-  "Protein smoothie with spinach and banana",
-  "Whole grain pancakes with maple syrup",
-  "Egg white omelet with vegetables",
-  "Chia seed pudding with almond milk",
-  "Quinoa breakfast bowl with fresh fruits",
-  "Whole grain toast with peanut butter and banana",
-  "Breakfast burrito with beans and vegetables",
-  "Cottage cheese with peaches and walnuts",
-  "Overnight oats with cinnamon and apple",
-  "Scrambled eggs with tomatoes and spinach",
-  "Protein waffles with blueberries",
-  "Smoked salmon with whole grain bagel"
+  "Oatmeal with skimmed milk, banana slices, and a sprinkle of nuts",
+  "Pap (fermented corn pudding) with moi moi (steamed bean pudding)",
+  "Unripe plantain porridge with vegetables",
+  "Smoothie made with spinach, banana, and almond milk",
+  "Whole wheat bread with avocado spread and boiled eggs",
+  "Akara (bean cakes) with pap",
+  "Granola with unsweetened yogurt and fresh berries",
+  "Yam porridge with spinach and vegetables",
+  "Millet porridge with coconut milk and dates",
+  "Sweet potato pancakes with honey",
+  "Quinoa breakfast bowl with Nigerian fruits",
+  "Boiled yam with scrambled eggs and vegetables",
+  "Acha (fonio) porridge with milk and fruits",
+  "Whole grain bread with groundnut butter",
+  "Corn meal porridge with cinnamon and nuts"
+];
+
+const midMorningSnackOptions = [
+  "A handful of cashew nuts",
+  "Sliced cucumber with a dash of lemon juice",
+  "Apple slices with peanut butter",
+  "Garden eggs (African eggplants)",
+  "Mixed fruit salad",
+  "Tigernuts",
+  "Orange slices",
+  "Watermelon chunks",
+  "Roasted groundnuts",
+  "Banana with almond butter",
+  "Coconut water and tiger nuts",
+  "Fresh pineapple slices",
+  "Baobab fruit powder drink",
+  "Soursop (custard apple) slices",
+  "African pear with groundnuts"
 ];
 
 const lunchOptions = [
-  "Grilled chicken salad with olive oil dressing",
-  "Tuna salad sandwich on whole grain bread",
-  "Quinoa bowl with roasted vegetables",
-  "Turkey and avocado wrap",
-  "Lentil soup with whole grain crackers",
-  "Chicken and vegetable stir-fry with brown rice",
-  "Mediterranean salad with feta cheese",
-  "Vegetable and hummus sandwich",
-  "Shrimp and mango salad",
-  "Black bean and sweet potato bowl",
-  "Grilled salmon with asparagus",
-  "Chickpea pasta with vegetables",
-  "Tofu and vegetable curry with brown rice",
-  "Egg salad on whole grain toast",
-  "Beef and broccoli with brown rice"
+  "Brown rice with grilled chicken and steamed vegetables",
+  "Amala (yam flour swallow) with ewedu soup and grilled fish",
+  "Ofada rice with vegetable sauce and lean beef",
+  "Sweet potatoes with grilled turkey and sautéed vegetables",
+  "Jollof rice with grilled fish and a side salad",
+  "Yam porridge with spinach and smoked fish",
+  "Eba (cassava flour swallow) with ogbono soup and lean meat",
+  "Tuwo shinkafa with miyan kuka and grilled chicken",
+  "Beans porridge with plantain and fish",
+  "Wheat semolina with vegetable soup and turkey",
+  "Acha (fonio) with okra soup and beef",
+  "Quinoa jollof with grilled fish",
+  "Brown rice and beans with stewed chicken",
+  "Yam and egg sauce with vegetables",
+  "Plantain and beans with palm oil sauce"
+];
+
+const afternoonSnackOptions = [
+  "Carrot sticks with hummus",
+  "Greek yogurt with honey",
+  "Boiled groundnuts",
+  "Pawpaw slices",
+  "Roasted plantain chips",
+  "Boiled corn with coconut",
+  "Boiled eggs",
+  "Roasted cashews",
+  "Fresh coconut chunks",
+  "Cucumber and tomato salad",
+  "Avocado slices with lime",
+  "Baked sweet potato chips",
+  "Trail mix with local nuts",
+  "Fresh guava fruit",
+  "Zobo drink with ginger"
 ];
 
 const dinnerOptions = [
-  "Baked salmon with steamed vegetables",
-  "Grilled chicken breast with quinoa and broccoli",
-  "Turkey meatballs with zucchini noodles",
-  "Baked cod with sweet potato and asparagus",
-  "Vegetable stir-fry with tofu and brown rice",
-  "Lentil curry with cauliflower rice",
-  "Grilled steak with roasted vegetables",
-  "Chicken fajitas with bell peppers and onions",
-  "Baked tilapia with quinoa and green beans",
-  "Vegetable lasagna with side salad",
-  "Shrimp and vegetable skewers",
-  "Turkey chili with mixed beans",
-  "Eggplant parmesan with side salad",
-  "Baked chicken thighs with sweet potatoes",
-  "Stuffed bell peppers with ground turkey and rice"
+  "Vegetable soup with a side of boiled plantains",
+  "Stir-fried vegetables with tofu",
+  "Okra soup with a small portion of fufu",
+  "Egusi soup with a small portion of pounded yam",
+  "Vegetable stir-fry with quinoa",
+  "Light vegetable soup with a small portion of rice",
+  "Steamed vegetables with grilled chicken",
+  "Pepper soup with catfish and yam",
+  "Bitter leaf soup with stockfish",
+  "Edikang ikong soup with periwinkle",
+  "Oha soup with chicken",
+  "Nsala soup with fish",
+  "Afang soup with beef",
+  "Grilled fish with steamed vegetables",
+  "Vegetable salad with grilled turkey"
 ];
 
-const snackOptions = [
-  "Greek yogurt",
-  "Handful of almonds",
-  "Apple with peanut butter",
-  "Carrot sticks with hummus",
-  "Protein bar",
-  "Hard-boiled egg",
-  "Mixed berries",
-  "Cottage cheese with pineapple",
-  "Trail mix",
-  "Celery with almond butter",
-  "Roasted chickpeas",
-  "String cheese",
-  "Banana with nut butter",
-  "Edamame",
-  "Rice cakes with avocado"
-];
-
-// Database of exercises for variety
+// Exercise database remains the same
 const exerciseOptions = [
   {
     name: "Push-ups",
@@ -218,6 +236,22 @@ const exerciseOptions = [
   }
 ];
 
+// Monthly nutrition focus themes
+const monthlyFocus = {
+  0: "fiber", // January
+  1: "healthy-fats", // February
+  2: "vegetables", // March
+  3: "reduced-sugar", // April
+  4: "physical-activity", // May
+  5: "hydration", // June
+  6: "new-recipes", // July
+  7: "plant-based", // August
+  8: "meal-prep", // September
+  9: "reduced-sodium", // October
+  10: "mindful-eating", // November
+  11: "reflection" // December
+};
+
 // Helper function to get random item from array
 const getRandomItem = <T extends unknown>(array: T[]): T => {
   return array[Math.floor(Math.random() * array.length)];
@@ -228,17 +262,6 @@ const getRandomInt = (min: number, max: number): number => {
   return Math.floor(Math.random() * (max - min + 1)) + min;
 };
 
-// Function to get a random exercise with random sets, reps, and rest
-const getRandomExercise = () => {
-  const exercise = getRandomItem(exerciseOptions);
-  return {
-    name: exercise.name,
-    sets: getRandomItem(exercise.sets),
-    reps: getRandomItem(exercise.reps),
-    rest: getRandomItem(exercise.rest)
-  };
-};
-
 // Function to get exercises for different categories without repetition
 const generateUniqueExercisesForDay = (): Array<{
   name: string;
@@ -246,7 +269,6 @@ const generateUniqueExercisesForDay = (): Array<{
   reps: number;
   rest: string;
 }> => {
-  // Get one exercise from each category
   const categories = ["Upper Body", "Lower Body", "Core", "Cardio"];
   
   return categories.map(category => {
@@ -286,60 +308,73 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [plans, user]);
 
-  // Generate unique meals for a specific day
+  // Generate unique meals for a specific day with Nigerian focus
   const generateUniqueMealsForDay = (existingMeals: Array<{
     day: number;
     breakfast: string;
+    midMorningSnack: string;
     lunch: string;
+    afternoonSnack: string;
     dinner: string;
-    snacks: string[];
-  }> = []): {
+  }> = [], currentMonth: number): {
     breakfast: string;
+    midMorningSnack: string;
     lunch: string;
+    afternoonSnack: string;
     dinner: string;
-    snacks: string[];
   } => {
-    let breakfast, lunch, dinner;
-    
     // Get all previously used meals
     const usedBreakfasts = existingMeals.map(meal => meal.breakfast);
+    const usedMidMorningSnacks = existingMeals.map(meal => meal.midMorningSnack);
     const usedLunches = existingMeals.map(meal => meal.lunch);
+    const usedAfternoonSnacks = existingMeals.map(meal => meal.afternoonSnack);
     const usedDinners = existingMeals.map(meal => meal.dinner);
     
-    // Find unique breakfast
-    let availableBreakfasts = breakfastOptions.filter(item => !usedBreakfasts.includes(item));
-    // If all options have been used, reset the filter
-    breakfast = availableBreakfasts.length > 0 
-      ? getRandomItem(availableBreakfasts) 
-      : getRandomItem(breakfastOptions);
+    // Apply monthly focus filtering (simplified for demonstration)
+    let filteredBreakfasts = breakfastOptions;
+    let filteredLunches = lunchOptions;
     
-    // Find unique lunch
-    let availableLunches = lunchOptions.filter(item => !usedLunches.includes(item));
-    lunch = availableLunches.length > 0 
-      ? getRandomItem(availableLunches) 
-      : getRandomItem(lunchOptions);
+    const focus = monthlyFocus[currentMonth as keyof typeof monthlyFocus];
     
-    // Find unique dinner
-    let availableDinners = dinnerOptions.filter(item => !usedDinners.includes(item));
-    dinner = availableDinners.length > 0 
-      ? getRandomItem(availableDinners) 
-      : getRandomItem(dinnerOptions);
-    
-    // Generate 2-3 random snacks
-    const numSnacks = getRandomInt(2, 3);
-    const snacks: string[] = [];
-    
-    for (let i = 0; i < numSnacks; i++) {
-      // Avoid duplicate snacks within the same day
-      let availableSnacks = snackOptions.filter(item => !snacks.includes(item));
-      snacks.push(getRandomItem(availableSnacks));
+    // Apply monthly focus preferences
+    if (focus === "fiber") {
+      filteredBreakfasts = breakfastOptions.filter(meal => 
+        meal.includes("oatmeal") || meal.includes("porridge") || meal.includes("whole")
+      );
+    } else if (focus === "vegetables") {
+      filteredLunches = lunchOptions.filter(meal => 
+        meal.includes("vegetable") || meal.includes("soup") || meal.includes("salad")
+      );
+    } else if (focus === "plant-based") {
+      filteredLunches = lunchOptions.filter(meal => 
+        meal.includes("beans") || meal.includes("quinoa") || meal.includes("vegetable")
+      );
     }
     
+    // If filtered options are too limited, use full options
+    if (filteredBreakfasts.length < 3) filteredBreakfasts = breakfastOptions;
+    if (filteredLunches.length < 3) filteredLunches = lunchOptions;
+    
+    // Find unique options
+    let availableBreakfasts = filteredBreakfasts.filter(item => !usedBreakfasts.includes(item));
+    let availableMidMorningSnacks = midMorningSnackOptions.filter(item => !usedMidMorningSnacks.includes(item));
+    let availableLunches = filteredLunches.filter(item => !usedLunches.includes(item));
+    let availableAfternoonSnacks = afternoonSnackOptions.filter(item => !usedAfternoonSnacks.includes(item));
+    let availableDinners = dinnerOptions.filter(item => !usedDinners.includes(item));
+    
+    // Reset to full options if all have been used
+    if (availableBreakfasts.length === 0) availableBreakfasts = filteredBreakfasts;
+    if (availableMidMorningSnacks.length === 0) availableMidMorningSnacks = midMorningSnackOptions;
+    if (availableLunches.length === 0) availableLunches = filteredLunches;
+    if (availableAfternoonSnacks.length === 0) availableAfternoonSnacks = afternoonSnackOptions;
+    if (availableDinners.length === 0) availableDinners = dinnerOptions;
+    
     return {
-      breakfast,
-      lunch,
-      dinner,
-      snacks
+      breakfast: getRandomItem(availableBreakfasts),
+      midMorningSnack: getRandomItem(availableMidMorningSnacks),
+      lunch: getRandomItem(availableLunches),
+      afternoonSnack: getRandomItem(availableAfternoonSnacks),
+      dinner: getRandomItem(availableDinners)
     };
   };
 
@@ -348,9 +383,9 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
-      // Generate a unique plan with varied meals and workouts
       const workouts = [];
       const meals = [];
+      const currentMonth = new Date().getMonth();
       
       for (let i = 0; i < duration; i++) {
         const dayNumber = i + 1;
@@ -361,16 +396,16 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
           exercises: generateUniqueExercisesForDay()
         });
         
-        // Add unique meals for this day
+        // Add unique meals for this day with monthly focus
         meals.push({
           day: dayNumber,
-          ...generateUniqueMealsForDay(meals)
+          ...generateUniqueMealsForDay(meals, currentMonth)
         });
       }
       
       const newPlan: Plan = {
         id: `plan-${Date.now()}`,
-        name: `${duration}-Day Fitness Plan`,
+        name: `${duration}-Day Nigerian Fitness Plan`,
         duration,
         createdAt: new Date().toISOString(),
         workouts,
