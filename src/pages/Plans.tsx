@@ -14,13 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Check, Info, Loader2 } from "lucide-react";
@@ -43,7 +36,6 @@ const Plans = () => {
   const [selectedDuration, setSelectedDuration] = useState<"7" | "14" | "21" | "30">("7");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
-  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -66,8 +58,8 @@ const Plans = () => {
       return;
     }
 
-    // Prevent multiple clicks
-    if (generating || paymentProcessing) {
+    // Prevent multiple clicks during processing
+    if (generating || paymentLoading) {
       return;
     }
 
@@ -109,22 +101,14 @@ const Plans = () => {
         return;
       }
 
-      setPaymentProcessing(true);
       try {
         console.log("Initiating payment for plan:", planObj);
         await initiatePayment(planObj);
-        // Payment success will be handled by the payment context
-        // After successful payment, generate the plan
-        console.log("Payment initiated successfully");
+        // Payment handling is done in the payment context
       } catch (error) {
         console.error("Payment failed:", error);
         toast.error("Payment failed. Please try again.");
-        setPaymentProcessing(false);
-        return;
       }
-      
-      // Don't set paymentProcessing to false here as payment might still be processing
-      // It will be reset when component remounts or user returns
       return;
     }
 
@@ -144,12 +128,7 @@ const Plans = () => {
     }
   };
 
-  // Reset payment processing state when component mounts or subscription changes
-  useEffect(() => {
-    setPaymentProcessing(false);
-  }, [subscription.active]);
-
-  const loading = planLoading || paymentLoading || generating || paymentProcessing;
+  const isProcessing = planLoading || paymentLoading || generating;
 
   return (
     <Layout>
@@ -269,13 +248,13 @@ const Plans = () => {
           <Button
             size="lg"
             onClick={handleGeneratePlan}
-            disabled={loading}
+            disabled={isProcessing}
             className="w-full max-w-md"
           >
-            {loading ? (
+            {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {paymentProcessing ? "Processing Payment..." : 
+                {paymentLoading ? "Processing Payment..." : 
                  generating ? "Generating Plan..." : "Processing..."}
               </>
             ) : (

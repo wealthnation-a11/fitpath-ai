@@ -124,17 +124,19 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Payment system not configured. Please contact support.");
       }
       
-      // Wait for Paystack to load with better error handling
-      let attempts = 0;
-      const maxAttempts = 100; // 10 seconds
-      
-      while (typeof window.PaystackPop === 'undefined' && attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        attempts++;
-      }
-      
+      // Check if Paystack is loaded
       if (typeof window.PaystackPop === 'undefined') {
-        throw new Error("Payment system failed to load. Please refresh the page and try again.");
+        // Load Paystack script
+        const script = document.createElement('script');
+        script.src = 'https://js.paystack.co/v1/inline.js';
+        script.async = true;
+        document.head.appendChild(script);
+        
+        // Wait for script to load
+        await new Promise((resolve, reject) => {
+          script.onload = resolve;
+          script.onerror = () => reject(new Error('Failed to load Paystack'));
+        });
       }
       
       console.log("Paystack loaded successfully");
@@ -150,7 +152,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         ref: reference,
         callback: async (response: any) => {
           console.log("Payment callback received:", response);
-          setLoading(false);
           
           if (response.status === 'success') {
             toast.success("Payment successful! Activating your subscription...");
@@ -179,6 +180,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 if (insertError) {
                   console.error("Error saving subscription:", insertError);
                   toast.error("Payment successful but failed to save subscription. Please contact support.");
+                  setLoading(false);
                   return;
                 }
                 
@@ -190,6 +192,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 
                 setSubscription(newSubscription);
                 toast.success(`Subscription activated: ${plan.name}`);
+                setLoading(false);
                 
                 // Reload the page to refresh the UI
                 setTimeout(() => {
@@ -197,13 +200,16 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 }, 1000);
               } else {
                 toast.error("Payment verification failed. Please contact support.");
+                setLoading(false);
               }
             } catch (err) {
               console.error("Error in payment verification:", err);
               toast.error("Payment processing error. Please contact support.");
+              setLoading(false);
             }
           } else {
             toast.error("Payment was not successful. Please try again.");
+            setLoading(false);
           }
         },
         onClose: () => {
@@ -213,7 +219,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         }
       };
       
-      console.log("Opening Paystack popup with config:", { ...paymentConfig, key: "***hidden***" });
+      console.log("Opening Paystack popup");
       
       const handler = window.PaystackPop.setup(paymentConfig);
       handler.openIframe();
@@ -232,18 +238,14 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("You must be logged in");
     }
     
-    setLoading(true);
-    setError(null);
-    
     try {
       console.log(`Verifying payment with reference: ${reference}`);
+      // Simulate verification - in production, this should verify with Paystack
       await new Promise(resolve => setTimeout(resolve, 1000));
       return true;
     } catch (err: any) {
       setError(err.message);
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
