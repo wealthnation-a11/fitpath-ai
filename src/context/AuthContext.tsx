@@ -29,52 +29,73 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.email);
+        
+        if (!mounted) return;
+        
         setSession(session);
         
         if (session?.user) {
-          // Fetch user profile from our profiles table
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
+          // Create user object from session data
+          const userData = {
+            id: session.user.id,
+            email: session.user.email || '',
+            name: session.user.user_metadata?.name || 
+                  session.user.user_metadata?.full_name || 
+                  session.user.email?.split('@')[0] || 
+                  'User'
+          };
+          setUser(userData);
           
-          if (profile && !profileError) {
-            setUser({
-              id: profile.id,
-              email: profile.email,
-              name: profile.name
-            });
-          } else {
-            // Fallback to user metadata if profile doesn't exist yet
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User'
-            });
-          }
+          // Try to fetch/create profile in background without blocking auth
+          setTimeout(async () => {
+            try {
+              const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              
+              if (!profile && !profileError) {
+                // Create profile if it doesn't exist
+                await supabase
+                  .from('profiles')
+                  .insert({
+                    id: session.user.id,
+                    email: session.user.email || '',
+                    name: userData.name
+                  });
+              }
+            } catch (err) {
+              console.log("Profile sync error (non-blocking):", err);
+            }
+          }, 100);
         } else {
           setUser(null);
         }
         
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        // This will be handled by the auth state change listener above
-      } else {
+      if (mounted && !session) {
         setLoading(false);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string) => {
@@ -99,9 +120,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err: any) {
       console.error("Login error:", err);
       setError(err.message || "Login failed");
-      throw err;
-    } finally {
       setLoading(false);
+      throw err;
     }
   };
 
@@ -134,9 +154,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (err: any) {
       console.error("Signup error:", err);
       setError(err.message || "Signup failed");
-      throw err;
-    } finally {
       setLoading(false);
+      throw err;
     }
   };
 
