@@ -43,6 +43,7 @@ const Plans = () => {
   const [selectedDuration, setSelectedDuration] = useState<"7" | "14" | "21" | "30">("7");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -65,6 +66,13 @@ const Plans = () => {
       return;
     }
 
+    // Prevent multiple clicks
+    if (generating || paymentProcessing) {
+      return;
+    }
+
+    console.log("Starting plan generation for:", selectedPlan);
+
     // If the user selects free trial
     if (selectedPlan === "free-trial" && !subscription.active) {
       // Check if they've reached the limit
@@ -77,31 +85,53 @@ const Plans = () => {
       }
       
       // Start the free trial
-      startFreeTrial();
-    } else if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
-      // Handle paid plan selection
+      setGenerating(true);
+      try {
+        startFreeTrial();
+        const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+        const plan = await createPlan(duration);
+        toast.success("Free trial plan generated successfully!");
+        navigate(`/plan/${plan.id}`);
+      } catch (error) {
+        console.error("Error generating free trial plan:", error);
+        toast.error("Failed to generate plan. Please try again.");
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // Handle paid plan selection
+    if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
       const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
       if (!planObj) {
         toast.error("Invalid plan selected");
         return;
       }
 
+      setPaymentProcessing(true);
       try {
-        // Pass the plan directly without recalculating - ensures consistency
+        console.log("Initiating payment for plan:", planObj);
         await initiatePayment(planObj);
-        // Payment will be handled by the Paystack popup
-        // If successful, the subscription context will be updated
-        return;
+        // Payment success will be handled by the payment context
+        // After successful payment, generate the plan
+        console.log("Payment initiated successfully");
       } catch (error) {
         console.error("Payment failed:", error);
         toast.error("Payment failed. Please try again.");
+        setPaymentProcessing(false);
         return;
       }
+      
+      // Don't set paymentProcessing to false here as payment might still be processing
+      // It will be reset when component remounts or user returns
+      return;
     }
 
-    // If we get here, either the user has an active subscription or is using the free trial
+    // If we get here, the user has an active subscription
     setGenerating(true);
     try {
+      console.log("Generating plan for subscribed user");
       const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
       const plan = await createPlan(duration);
       toast.success("Plan generated successfully!");
@@ -114,7 +144,12 @@ const Plans = () => {
     }
   };
 
-  const loading = planLoading || paymentLoading || generating;
+  // Reset payment processing state when component mounts or subscription changes
+  useEffect(() => {
+    setPaymentProcessing(false);
+  }, [subscription.active]);
+
+  const loading = planLoading || paymentLoading || generating || paymentProcessing;
 
   return (
     <Layout>
@@ -126,6 +161,7 @@ const Plans = () => {
           </p>
         </div>
 
+        {/* Plan Duration Card */}
         <Card>
           <CardHeader>
             <CardTitle>Plan Duration</CardTitle>
@@ -172,6 +208,7 @@ const Plans = () => {
           </CardContent>
         </Card>
 
+        {/* Plan Selection Card */}
         <Card>
           <CardHeader>
             <CardTitle>Choose Your Plan</CardTitle>
@@ -227,6 +264,7 @@ const Plans = () => {
           </CardContent>
         </Card>
 
+        {/* Generate Plan Button */}
         <div className="flex justify-center">
           <Button
             size="lg"
@@ -237,7 +275,8 @@ const Plans = () => {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {generating ? "Generating Plan..." : "Processing..."}
+                {paymentProcessing ? "Processing Payment..." : 
+                 generating ? "Generating Plan..." : "Processing..."}
               </>
             ) : (
               <>

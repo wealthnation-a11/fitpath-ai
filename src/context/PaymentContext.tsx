@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,97 +117,113 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
+      console.log("Starting payment initiation for plan:", plan.name);
+      
       const paystackPublicKey = PAYSTACK_PUBLIC_KEY;
+      if (!paystackPublicKey) {
+        throw new Error("Payment system not configured. Please contact support.");
+      }
       
-      if (typeof window.PaystackPop === 'undefined') {
-        await new Promise<void>((resolve, reject) => {
-          let attempts = 0;
-          const checkPaystack = setInterval(() => {
-            attempts++;
-            if (typeof window.PaystackPop !== 'undefined') {
-              clearInterval(checkPaystack);
-              resolve();
-            } else if (attempts >= 50) {
-              clearInterval(checkPaystack);
-              reject(new Error("Paystack failed to load. Please refresh the page and try again."));
-            }
-          }, 100);
-        });
+      // Wait for Paystack to load with better error handling
+      let attempts = 0;
+      const maxAttempts = 100; // 10 seconds
+      
+      while (typeof window.PaystackPop === 'undefined' && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
       }
       
       if (typeof window.PaystackPop === 'undefined') {
-        throw new Error("Paystack not available. Please check your internet connection and refresh the page.");
+        throw new Error("Payment system failed to load. Please refresh the page and try again.");
       }
+      
+      console.log("Paystack loaded successfully");
       
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
+      console.log("Generated payment reference:", reference);
       
-      const handler = window.PaystackPop.setup({
+      const paymentConfig = {
         key: paystackPublicKey,
         email: user.email,
         amount: plan.amount,
         currency: 'NGN',
         ref: reference,
         callback: async (response: any) => {
-          console.log("Payment successful. Reference:", response.reference);
-          toast.success("Payment successful! Verifying your subscription...");
+          console.log("Payment callback received:", response);
+          setLoading(false);
           
-          try {
-            const success = await verifyPayment(response.reference);
-            if (success) {
-              const expiryDate = new Date();
-              expiryDate.setDate(expiryDate.getDate() + plan.duration);
-              
-              // Save to Supabase subscribers table
-              const { error: insertError } = await supabase
-                .from('subscribers')
-                .upsert({
-                  user_id: session.user.id,
-                  email: user.email,
-                  subscribed: true,
-                  subscription_tier: plan.id,
-                  subscription_end: expiryDate.toISOString(),
-                  plan_duration: plan.duration,
-                  amount_paid: plan.amount,
-                  currency: 'NGN',
-                  payment_reference: response.reference
-                });
+          if (response.status === 'success') {
+            toast.success("Payment successful! Activating your subscription...");
+            
+            try {
+              const success = await verifyPayment(response.reference);
+              if (success) {
+                const expiryDate = new Date();
+                expiryDate.setDate(expiryDate.getDate() + plan.duration);
+                
+                // Save to Supabase subscribers table
+                const { error: insertError } = await supabase
+                  .from('subscribers')
+                  .upsert({
+                    user_id: session.user.id,
+                    email: user.email,
+                    subscribed: true,
+                    subscription_tier: plan.id,
+                    subscription_end: expiryDate.toISOString(),
+                    plan_duration: plan.duration,
+                    amount_paid: plan.amount,
+                    currency: 'NGN',
+                    payment_reference: response.reference
+                  });
 
-              if (insertError) {
-                console.error("Error saving subscription:", insertError);
-                toast.error("Payment successful but failed to save subscription. Please contact support.");
-                return;
+                if (insertError) {
+                  console.error("Error saving subscription:", insertError);
+                  toast.error("Payment successful but failed to save subscription. Please contact support.");
+                  return;
+                }
+                
+                const newSubscription: SubscriptionStatus = {
+                  active: true,
+                  plan,
+                  expiresAt: expiryDate.toISOString()
+                };
+                
+                setSubscription(newSubscription);
+                toast.success(`Subscription activated: ${plan.name}`);
+                
+                // Reload the page to refresh the UI
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1000);
+              } else {
+                toast.error("Payment verification failed. Please contact support.");
               }
-              
-              const newSubscription: SubscriptionStatus = {
-                active: true,
-                plan,
-                expiresAt: expiryDate.toISOString()
-              };
-              
-              setSubscription(newSubscription);
-              toast.success(`Subscription activated: ${plan.name}`);
-            } else {
-              toast.error("Payment verification failed. Please contact support.");
+            } catch (err) {
+              console.error("Error in payment verification:", err);
+              toast.error("Payment processing error. Please contact support.");
             }
-          } catch (err) {
-            console.error("Error in payment callback:", err);
-            toast.error("Payment processing error. Please contact support.");
+          } else {
+            toast.error("Payment was not successful. Please try again.");
           }
         },
         onClose: () => {
-          toast.info("Payment window closed");
+          console.log("Payment popup closed");
           setLoading(false);
+          toast.info("Payment cancelled");
         }
-      });
+      };
       
+      console.log("Opening Paystack popup with config:", { ...paymentConfig, key: "***hidden***" });
+      
+      const handler = window.PaystackPop.setup(paymentConfig);
       handler.openIframe();
+      
     } catch (err: any) {
-      console.error("Payment error:", err);
+      console.error("Payment initialization error:", err);
       setError(err.message);
-      toast.error(err.message || "Payment failed. Please try again.");
-      throw err;
-    } finally {
       setLoading(false);
+      toast.error(err.message || "Payment failed to start. Please try again.");
+      throw err;
     }
   };
 
