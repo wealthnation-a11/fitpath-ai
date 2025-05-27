@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,9 +134,13 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log("Starting payment initiation for plan:", plan.name);
       
-      const paystackPublicKey = PAYSTACK_PUBLIC_KEY;
-      if (!paystackPublicKey) {
+      if (!PAYSTACK_PUBLIC_KEY) {
         throw new Error("Payment system not configured. Please contact support.");
+      }
+      
+      // Validate public key format
+      if (!PAYSTACK_PUBLIC_KEY.startsWith('pk_')) {
+        throw new Error("Invalid Paystack public key format");
       }
       
       // Load Paystack script if not already loaded
@@ -179,7 +184,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       console.log("Generated payment reference:", reference);
       
       const paymentConfig = {
-        key: paystackPublicKey,
+        key: PAYSTACK_PUBLIC_KEY,
         email: user.email,
         amount: plan.amount,
         currency: 'NGN',
@@ -271,9 +276,23 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     
     try {
       console.log(`Verifying payment with reference: ${reference}`);
-      // Simulate verification - in production, this should verify with Paystack
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      return true;
+      
+      const { data, error } = await supabase.functions.invoke('verify-paystack-payment', {
+        body: { reference }
+      });
+
+      if (error) {
+        console.error("Payment verification error:", error);
+        throw error;
+      }
+
+      if (data?.success) {
+        console.log("Payment verified successfully:", data);
+        return true;
+      } else {
+        console.error("Payment verification failed:", data);
+        return false;
+      }
     } catch (err: any) {
       console.error("Payment verification error:", err);
       setError(err.message);
