@@ -81,6 +81,7 @@ type PaymentContextType = {
   checkSubscription: () => Promise<SubscriptionStatus>;
   startFreeTrial: () => void;
   formatPrice: (amount: number) => string;
+  resetPaymentState: () => void;
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
@@ -99,6 +100,11 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     return `${currency.symbol}${mainUnitAmount.toLocaleString('en-NG')}`;
   };
 
+  const resetPaymentState = () => {
+    setLoading(false);
+    setError(null);
+  };
+
   useEffect(() => {
     setCurrency(SUPPORTED_CURRENCIES.NGN);
   }, []);
@@ -110,9 +116,17 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
 
   const initiatePayment = async (plan: SubscriptionPlan) => {
     if (!user || !session) {
-      throw new Error("You must be logged in to make a payment");
+      const errorMsg = "You must be logged in to make a payment";
+      setError(errorMsg);
+      toast.error(errorMsg);
+      return;
     }
     
+    if (loading) {
+      console.log("Payment already in progress, ignoring duplicate request");
+      return;
+    }
+
     setLoading(true);
     setError(null);
     
@@ -124,22 +138,42 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Payment system not configured. Please contact support.");
       }
       
-      // Check if Paystack is loaded
+      // Load Paystack script if not already loaded
       if (typeof window.PaystackPop === 'undefined') {
-        // Load Paystack script
+        console.log("Loading Paystack script...");
+        
+        // Remove any existing script first
+        const existingScript = document.querySelector('script[src*="paystack"]');
+        if (existingScript) {
+          existingScript.remove();
+        }
+        
         const script = document.createElement('script');
         script.src = 'https://js.paystack.co/v1/inline.js';
         script.async = true;
         document.head.appendChild(script);
         
-        // Wait for script to load
         await new Promise((resolve, reject) => {
-          script.onload = resolve;
-          script.onerror = () => reject(new Error('Failed to load Paystack'));
+          script.onload = () => {
+            console.log("Paystack script loaded successfully");
+            resolve(true);
+          };
+          script.onerror = () => {
+            const err = new Error('Failed to load Paystack payment system');
+            console.error(err);
+            reject(err);
+          };
+          
+          // Timeout after 10 seconds
+          setTimeout(() => {
+            reject(new Error('Paystack script loading timeout'));
+          }, 10000);
         });
       }
       
-      console.log("Paystack loaded successfully");
+      if (typeof window.PaystackPop === 'undefined') {
+        throw new Error('Payment system failed to initialize. Please refresh and try again.');
+      }
       
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
@@ -153,9 +187,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         callback: async (response: any) => {
           console.log("Payment callback received:", response);
           
-          if (response.status === 'success') {
-            toast.success("Payment successful! Activating your subscription...");
-            
+          if (response.status === 'success' && response.reference) {
             try {
               const success = await verifyPayment(response.reference);
               if (success) {
@@ -180,7 +212,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 if (insertError) {
                   console.error("Error saving subscription:", insertError);
                   toast.error("Payment successful but failed to save subscription. Please contact support.");
-                  setLoading(false);
                   return;
                 }
                 
@@ -191,35 +222,36 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 };
                 
                 setSubscription(newSubscription);
-                toast.success(`Subscription activated: ${plan.name}`);
-                setLoading(false);
+                toast.success(`Payment successful! ${plan.name} activated.`);
                 
                 // Reload the page to refresh the UI
                 setTimeout(() => {
                   window.location.reload();
-                }, 1000);
+                }, 1500);
               } else {
                 toast.error("Payment verification failed. Please contact support.");
-                setLoading(false);
               }
             } catch (err) {
               console.error("Error in payment verification:", err);
               toast.error("Payment processing error. Please contact support.");
-              setLoading(false);
             }
           } else {
             toast.error("Payment was not successful. Please try again.");
-            setLoading(false);
           }
+          
+          setLoading(false);
         },
         onClose: () => {
-          console.log("Payment popup closed");
+          console.log("Payment popup closed by user");
           setLoading(false);
           toast.info("Payment cancelled");
         }
       };
       
-      console.log("Opening Paystack popup");
+      console.log("Opening Paystack popup with config:", {
+        ...paymentConfig,
+        key: "***hidden***"
+      });
       
       const handler = window.PaystackPop.setup(paymentConfig);
       handler.openIframe();
@@ -229,13 +261,12 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       setError(err.message);
       setLoading(false);
       toast.error(err.message || "Payment failed to start. Please try again.");
-      throw err;
     }
   };
 
   const verifyPayment = async (reference: string): Promise<boolean> => {
     if (!user || !session) {
-      throw new Error("You must be logged in");
+      return false;
     }
     
     try {
@@ -244,6 +275,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       return true;
     } catch (err: any) {
+      console.error("Payment verification error:", err);
       setError(err.message);
       return false;
     }
@@ -360,7 +392,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         verifyPayment,
         checkSubscription,
         startFreeTrial,
-        formatPrice
+        formatPrice,
+        resetPaymentState
       }}
     >
       {children}

@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Check, Info, Loader2 } from "lucide-react";
+import { Check, Info, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 const Plans = () => {
@@ -29,7 +29,8 @@ const Plans = () => {
     startFreeTrial, 
     loading: paymentLoading, 
     currency,
-    formatPrice 
+    formatPrice,
+    resetPaymentState
   } = usePayment();
   const navigate = useNavigate();
 
@@ -51,6 +52,13 @@ const Plans = () => {
     }
   }, [user, checkSubscription]);
 
+  // Reset payment state when component unmounts or user changes
+  useEffect(() => {
+    return () => {
+      resetPaymentState();
+    };
+  }, [resetPaymentState]);
+
   const handleGeneratePlan = async () => {
     if (!user) {
       toast.error("Please login to generate a plan");
@@ -59,7 +67,8 @@ const Plans = () => {
     }
 
     // Prevent multiple clicks during processing
-    if (generating || paymentLoading) {
+    if (generating || paymentLoading || planLoading) {
+      console.log("Operation already in progress, ignoring click");
       return;
     }
 
@@ -128,6 +137,11 @@ const Plans = () => {
     }
   };
 
+  const handleResetPayment = () => {
+    resetPaymentState();
+    toast.info("Payment state reset. You can try again.");
+  };
+
   const isProcessing = planLoading || paymentLoading || generating;
 
   return (
@@ -180,6 +194,7 @@ const Plans = () => {
                       setSelectedDuration(e.target.value as "7" | "14" | "21" | "30")
                     }
                     className="sr-only"
+                    disabled={isProcessing}
                   />
                 </div>
               ))}
@@ -200,6 +215,7 @@ const Plans = () => {
               value={selectedPlan}
               onValueChange={setSelectedPlan}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+              disabled={isProcessing}
             >
               {SUBSCRIPTION_PLANS.map((plan) => (
                 <div key={plan.id}>
@@ -207,6 +223,7 @@ const Plans = () => {
                     value={plan.id}
                     id={`plan-${plan.id}`}
                     className="peer sr-only"
+                    disabled={isProcessing}
                   />
                   <Label
                     htmlFor={`plan-${plan.id}`}
@@ -215,7 +232,7 @@ const Plans = () => {
                       subscription.plan?.id === plan.id
                         ? "ring-2 ring-primary"
                         : ""
-                    }`}
+                    } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                   >
                     {subscription.active &&
                       subscription.plan?.id === plan.id && (
@@ -244,7 +261,7 @@ const Plans = () => {
         </Card>
 
         {/* Generate Plan Button */}
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4">
           <Button
             size="lg"
             onClick={handleGeneratePlan}
@@ -265,7 +282,25 @@ const Plans = () => {
               </>
             )}
           </Button>
+          
+          {paymentLoading && (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={handleResetPayment}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Reset
+            </Button>
+          )}
         </div>
+
+        {isProcessing && (
+          <div className="text-center text-sm text-muted-foreground">
+            {paymentLoading && "If payment seems stuck, you can click Reset to try again."}
+          </div>
+        )}
       </div>
     </Layout>
   );
