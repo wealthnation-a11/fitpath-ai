@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -16,7 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Check, Info, Loader2, RefreshCw } from "lucide-react";
+import { Check, Info, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 const Plans = () => {
@@ -135,11 +134,6 @@ const Plans = () => {
     } finally {
       setGenerating(false);
     }
-  };
-
-  const handleResetPayment = () => {
-    resetPaymentState();
-    toast.info("Payment state reset. You can try again.");
   };
 
   const isProcessing = planLoading || paymentLoading || generating;
@@ -261,7 +255,7 @@ const Plans = () => {
         </Card>
 
         {/* Generate Plan Button */}
-        <div className="flex justify-center gap-4">
+        <div className="flex justify-center">
           <Button
             size="lg"
             onClick={handleGeneratePlan}
@@ -282,25 +276,7 @@ const Plans = () => {
               </>
             )}
           </Button>
-          
-          {paymentLoading && (
-            <Button
-              size="lg"
-              variant="outline"
-              onClick={handleResetPayment}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Reset
-            </Button>
-          )}
         </div>
-
-        {isProcessing && (
-          <div className="text-center text-sm text-muted-foreground">
-            {paymentLoading && "If payment seems stuck, you can click Reset to try again."}
-          </div>
-        )}
       </div>
     </Layout>
   );

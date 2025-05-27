@@ -120,7 +120,7 @@ const PlanDetail = () => {
       }
     }
     
-    content += "\n\nNIGERIAN MEAL PLAN (5 MEALS PER DAY):\n";
+    content += "\n\nMEAL PLAN (5 MEALS PER DAY):\n";
     for (const meal of plan.meals) {
       content += `\nDay ${meal.day}:\n`;
       content += `Breakfast: ${meal.breakfast}\n`;
@@ -134,13 +134,13 @@ const PlanDetail = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `fitpath-nigerian-plan-${plan.id}.txt`;
+    a.download = `fitpath-meal-plan-${plan.id}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     
-    toast.success("Nigerian meal plan downloaded successfully!");
+    toast.success("Meal plan downloaded successfully!");
   };
 
   const handleUpgradeClick = () => {
@@ -169,7 +169,7 @@ const PlanDetail = () => {
             </Button>
             <h1 className="text-3xl font-bold">{plan.name}</h1>
             <p className="text-muted-foreground">
-              Created on {formatDate(plan.createdAt)} • {plan.duration} days • Nigerian Cuisine
+              Created on {formatDate(plan.createdAt)} • {plan.duration} days • Meal Plan
             </p>
           </div>
           
@@ -185,7 +185,7 @@ const PlanDetail = () => {
         <Tabs defaultValue="workouts" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger value="workouts">Workouts</TabsTrigger>
-            <TabsTrigger value="meals">Nigerian Meal Plan</TabsTrigger>
+            <TabsTrigger value="meals">Meal Plan</TabsTrigger>
           </TabsList>
 
           <TabsContent value="workouts" className="space-y-4">
@@ -273,9 +273,9 @@ const PlanDetail = () => {
           <TabsContent value="meals" className="space-y-4">
             <Card className="shadow-soft rounded-2xl card-hover border-t-4 border-t-fitpath-green">
               <CardHeader>
-                <CardTitle>Your Nigerian Meal Plan</CardTitle>
+                <CardTitle>Your Meal Plan</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  5 balanced meals per day featuring authentic Nigerian cuisine and seasonal ingredients
+                  5 balanced meals per day featuring authentic cuisine and seasonal ingredients
                 </p>
               </CardHeader>
               <CardContent>
