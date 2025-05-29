@@ -75,8 +75,27 @@ const Plans = () => {
     console.log("Starting plan generation for:", selectedPlan);
 
     // If the user selects free trial
-    if (selectedPlan === "free-trial" && !subscription.active) {
-      // Check if they've reached the limit
+    if (selectedPlan === "free-trial") {
+      // Check if they already have an active subscription
+      if (subscription.active) {
+        // If they have an active subscription, just generate the plan
+        setGenerating(true);
+        try {
+          console.log("Generating plan for subscribed user (free trial selected)");
+          const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+          const plan = await createPlan(duration);
+          toast.success("Plan generated successfully!");
+          navigate(`/plan/${plan.id}`);
+        } catch (error) {
+          console.error("Error generating plan:", error);
+          toast.error("Failed to generate plan. Please try again.");
+        } finally {
+          setGenerating(false);
+        }
+        return;
+      }
+
+      // Check if they've already used the free trial
       const existingPlans = JSON.parse(localStorage.getItem(`fitpath-plans-${user.id}`) || "[]");
       const freeTrialCount = existingPlans.length;
       
@@ -103,7 +122,27 @@ const Plans = () => {
     }
 
     // Handle paid plan selection
-    if (selectedPlan !== "free-trial" && (!subscription.active || (subscription.plan?.id !== selectedPlan))) {
+    if (selectedPlan !== "free-trial") {
+      // Check if user already has this plan active
+      if (subscription.active && subscription.plan?.id === selectedPlan) {
+        // User already has this plan, just generate
+        setGenerating(true);
+        try {
+          console.log("Generating plan for user with active subscription");
+          const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+          const plan = await createPlan(duration);
+          toast.success("Plan generated successfully!");
+          navigate(`/plan/${plan.id}`);
+        } catch (error) {
+          console.error("Error generating plan:", error);
+          toast.error("Failed to generate plan. Please try again.");
+        } finally {
+          setGenerating(false);
+        }
+        return;
+      }
+
+      // User needs to pay for this plan
       const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
       if (!planObj) {
         toast.error("Invalid plan selected");
@@ -120,21 +159,6 @@ const Plans = () => {
       }
       return;
     }
-
-    // If we get here, the user has an active subscription
-    setGenerating(true);
-    try {
-      console.log("Generating plan for subscribed user");
-      const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
-      const plan = await createPlan(duration);
-      toast.success("Plan generated successfully!");
-      navigate(`/plan/${plan.id}`);
-    } catch (error) {
-      console.error("Error generating plan:", error);
-      toast.error("Failed to generate plan. Please try again.");
-    } finally {
-      setGenerating(false);
-    }
   };
 
   // Only disable the generate button, not the selection options
@@ -145,10 +169,20 @@ const Plans = () => {
     if (generating) return "Generating Plan...";
     if (planLoading) return "Processing...";
     
-    if (selectedPlan === "free-trial" || subscription.active) {
+    // Check if user already has the selected plan
+    if (subscription.active && subscription.plan?.id === selectedPlan) {
       return "Generate Plan";
     }
+    
+    if (selectedPlan === "free-trial") {
+      return "Start Free Trial";
+    }
+    
     return "Pay & Generate Plan";
+  };
+
+  const isPlanCurrentlyActive = (planId: string) => {
+    return subscription.active && subscription.plan?.id === planId;
   };
 
   return (
@@ -232,15 +266,14 @@ const Plans = () => {
                   <Label
                     htmlFor={`plan-${plan.id}`}
                     className={`flex flex-col p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 ${
-                      subscription.active &&
-                      subscription.plan?.id === plan.id
-                        ? "ring-2 ring-primary"
+                      isPlanCurrentlyActive(plan.id)
+                        ? "ring-2 ring-green-500 bg-green-50"
                         : ""
                     }`}
                   >
-                    {subscription.active &&
-                      subscription.plan?.id === plan.id && (
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full self-start mb-2">
+                    {isPlanCurrentlyActive(plan.id) && (
+                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full self-start mb-2 flex items-center gap-1">
+                          <Check className="h-3 w-3" />
                           Current Plan
                         </span>
                     )}
