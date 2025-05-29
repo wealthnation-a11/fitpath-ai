@@ -137,7 +137,8 @@ const Plans = () => {
     }
   };
 
-  const isProcessing = planLoading || paymentLoading || generating;
+  // Only disable the generate button, not the selection options
+  const isButtonDisabled = planLoading || paymentLoading || generating;
 
   const getButtonText = () => {
     if (paymentLoading) return "Processing Payment...";
@@ -181,7 +182,7 @@ const Plans = () => {
                         selectedDuration === duration
                           ? "border-primary bg-primary/5"
                           : ""
-                      } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                      }`}
                     >
                       <span className="block text-2xl font-bold mb-1">
                         {duration}
@@ -200,7 +201,6 @@ const Plans = () => {
                       setSelectedDuration(e.target.value as "7" | "14" | "21" | "30")
                     }
                     className="sr-only"
-                    disabled={isProcessing}
                   />
                 </div>
               ))}
@@ -221,7 +221,6 @@ const Plans = () => {
               value={selectedPlan}
               onValueChange={setSelectedPlan}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
-              disabled={isProcessing}
             >
               {SUBSCRIPTION_PLANS.map((plan) => (
                 <div key={plan.id}>
@@ -229,7 +228,6 @@ const Plans = () => {
                     value={plan.id}
                     id={`plan-${plan.id}`}
                     className="peer sr-only"
-                    disabled={isProcessing}
                   />
                   <Label
                     htmlFor={`plan-${plan.id}`}
@@ -238,7 +236,7 @@ const Plans = () => {
                       subscription.plan?.id === plan.id
                         ? "ring-2 ring-primary"
                         : ""
-                    } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
+                    }`}
                   >
                     {subscription.active &&
                       subscription.plan?.id === plan.id && (
@@ -271,10 +269,10 @@ const Plans = () => {
           <Button
             size="lg"
             onClick={handleGeneratePlan}
-            disabled={isProcessing}
+            disabled={isButtonDisabled}
             className="w-full max-w-md"
           >
-            {isProcessing ? (
+            {isButtonDisabled ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {getButtonText()}
