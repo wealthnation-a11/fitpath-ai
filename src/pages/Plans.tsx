@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -138,6 +139,17 @@ const Plans = () => {
 
   const isProcessing = planLoading || paymentLoading || generating;
 
+  const getButtonText = () => {
+    if (paymentLoading) return "Processing Payment...";
+    if (generating) return "Generating Plan...";
+    if (planLoading) return "Processing...";
+    
+    if (selectedPlan === "free-trial" || subscription.active) {
+      return "Generate Plan";
+    }
+    return "Pay & Generate Plan";
+  };
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -169,7 +181,7 @@ const Plans = () => {
                         selectedDuration === duration
                           ? "border-primary bg-primary/5"
                           : ""
-                      }`}
+                      } ${isProcessing ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                       <span className="block text-2xl font-bold mb-1">
                         {duration}
@@ -265,15 +277,10 @@ const Plans = () => {
             {isProcessing ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {paymentLoading ? "Processing Payment..." : 
-                 generating ? "Generating Plan..." : "Processing..."}
+                {getButtonText()}
               </>
             ) : (
-              <>
-                {selectedPlan === "free-trial" || subscription.active
-                  ? "Generate Plan"
-                  : "Pay & Generate Plan"}
-              </>
+              getButtonText()
             )}
           </Button>
         </div>

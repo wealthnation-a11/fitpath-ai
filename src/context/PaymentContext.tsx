@@ -194,6 +194,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
           
           if (response.status === 'success' && response.reference) {
             try {
+              console.log("Verifying payment...");
               const success = await verifyPayment(response.reference);
               if (success) {
                 const expiryDate = new Date();
@@ -217,6 +218,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 if (insertError) {
                   console.error("Error saving subscription:", insertError);
                   toast.error("Payment successful but failed to save subscription. Please contact support.");
+                  setLoading(false);
                   return;
                 }
                 
@@ -235,16 +237,17 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 }, 1500);
               } else {
                 toast.error("Payment verification failed. Please contact support.");
+                setLoading(false);
               }
             } catch (err) {
               console.error("Error in payment verification:", err);
               toast.error("Payment processing error. Please contact support.");
+              setLoading(false);
             }
           } else {
             toast.error("Payment was not successful. Please try again.");
+            setLoading(false);
           }
-          
-          setLoading(false);
         },
         onClose: () => {
           console.log("Payment popup closed by user");
