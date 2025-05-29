@@ -45,19 +45,25 @@ const Plans = () => {
     }
   }, [user, navigate]);
 
-  // Check subscription status on load
+  // Check subscription status on load and reset payment state
   useEffect(() => {
     if (user) {
       checkSubscription();
+      resetPaymentState(); // Reset payment state when component loads
     }
-  }, [user, checkSubscription]);
+  }, [user, checkSubscription, resetPaymentState]);
 
-  // Reset payment state when component unmounts or user changes
+  // Reset payment state when component unmounts
   useEffect(() => {
     return () => {
       resetPaymentState();
     };
   }, [resetPaymentState]);
+
+  // Reset payment loading when plan selection changes
+  useEffect(() => {
+    resetPaymentState();
+  }, [selectedPlan, resetPaymentState]);
 
   const handleGeneratePlan = async () => {
     if (!user) {
@@ -67,10 +73,13 @@ const Plans = () => {
     }
 
     // Prevent multiple clicks during processing
-    if (generating || paymentLoading || planLoading) {
+    if (generating || planLoading) {
       console.log("Operation already in progress, ignoring click");
       return;
     }
+
+    // Reset payment state at the start
+    resetPaymentState();
 
     console.log("Starting plan generation for:", selectedPlan);
 
@@ -156,18 +165,21 @@ const Plans = () => {
       } catch (error) {
         console.error("Payment failed:", error);
         toast.error("Payment failed. Please try again.");
+        resetPaymentState(); // Reset state on error
       }
       return;
     }
   };
 
-  // Only disable the generate button, not the selection options
-  const isButtonDisabled = planLoading || paymentLoading || generating;
+  // Only disable the generate button when actually processing
+  const isButtonDisabled = generating || planLoading;
 
   const getButtonText = () => {
-    if (paymentLoading) return "Processing Payment...";
     if (generating) return "Generating Plan...";
     if (planLoading) return "Processing...";
+    
+    // If payment is loading, show that specific state
+    if (paymentLoading) return "Processing Payment...";
     
     // Check if user already has the selected plan
     if (subscription.active && subscription.plan?.id === selectedPlan) {
@@ -253,7 +265,10 @@ const Plans = () => {
           <CardContent>
             <RadioGroup
               value={selectedPlan}
-              onValueChange={setSelectedPlan}
+              onValueChange={(value) => {
+                setSelectedPlan(value);
+                resetPaymentState(); // Reset payment state when plan changes
+              }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             >
               {SUBSCRIPTION_PLANS.map((plan) => (
@@ -302,10 +317,10 @@ const Plans = () => {
           <Button
             size="lg"
             onClick={handleGeneratePlan}
-            disabled={isButtonDisabled}
+            disabled={isButtonDisabled || paymentLoading}
             className="w-full max-w-md"
           >
-            {isButtonDisabled ? (
+            {(isButtonDisabled || paymentLoading) ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {getButtonText()}

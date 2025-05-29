@@ -102,6 +102,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPaymentState = () => {
+    console.log("Resetting payment state");
     setLoading(false);
     setError(null);
   };
@@ -128,6 +129,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    console.log("Setting loading to true for payment initiation");
     setLoading(true);
     setError(null);
     
@@ -230,6 +232,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
                 
                 setSubscription(newSubscription);
                 toast.success(`Payment successful! ${plan.name} activated.`);
+                
+                // Reset loading state
+                setLoading(false);
                 
                 // Reload the page to refresh the UI
                 setTimeout(() => {
