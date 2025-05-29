@@ -78,9 +78,6 @@ const Plans = () => {
       return;
     }
 
-    // Reset payment state at the start
-    resetPaymentState();
-
     console.log("Starting plan generation for:", selectedPlan);
 
     // If the user selects free trial
@@ -165,20 +162,17 @@ const Plans = () => {
       } catch (error) {
         console.error("Payment failed:", error);
         toast.error("Payment failed. Please try again.");
-        resetPaymentState(); // Reset state on error
       }
       return;
     }
   };
 
   // Only disable the generate button when actually processing
-  const isButtonDisabled = generating || planLoading;
+  const isButtonDisabled = generating || planLoading || paymentLoading;
 
   const getButtonText = () => {
     if (generating) return "Generating Plan...";
     if (planLoading) return "Processing...";
-    
-    // If payment is loading, show that specific state
     if (paymentLoading) return "Processing Payment...";
     
     // Check if user already has the selected plan
@@ -317,10 +311,10 @@ const Plans = () => {
           <Button
             size="lg"
             onClick={handleGeneratePlan}
-            disabled={isButtonDisabled || paymentLoading}
+            disabled={isButtonDisabled}
             className="w-full max-w-md"
           >
-            {(isButtonDisabled || paymentLoading) ? (
+            {isButtonDisabled ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 {getButtonText()}
