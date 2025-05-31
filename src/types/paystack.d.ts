@@ -6,7 +6,11 @@ interface PaystackPopInterface {
     amount: number;
     currency: string;
     ref: string;
-    callback: (response: any) => void;
+    callback: (response: {
+      status: string;
+      reference: string;
+      [key: string]: any;
+    }) => void;
     onClose: () => void;
     [key: string]: any;
   }): {
