@@ -24,6 +24,7 @@ export type SubscriptionPlan = {
   amount: number;
   duration: number;
   description: string;
+  displayName: string;
 };
 
 const BASE_SUBSCRIPTION_PLANS = [
@@ -32,28 +33,32 @@ const BASE_SUBSCRIPTION_PLANS = [
     name: "3-Day Free Trial",
     baseAmount: 0,
     duration: 3,
-    description: "Try FitPath AI for free for 3 days"
+    description: "Try FitPath AI for free for 3 days",
+    displayName: "Free Trial"
   },
   {
     id: "monthly",
     name: "Monthly Plan",
-    baseAmount: 780000, // ₦7,800
+    baseAmount: 780000, // ₦7,800 in kobo
     duration: 30,
-    description: "30 days of personalized fitness and meal plans"
+    description: "30 days of personalized fitness and meal plans",
+    displayName: "Monthly"
   },
   {
     id: "semi-annual",
     name: "6 Months Plan",
-    baseAmount: 3900000, // ₦39,000
+    baseAmount: 3900000, // ₦39,000 in kobo
     duration: 180,
-    description: "6 months of personalized fitness and meal plans"
+    description: "6 months of personalized fitness and meal plans",
+    displayName: "Semi-Annual"
   },
   {
     id: "annual",
     name: "Annual Plan",
-    baseAmount: 7600000, // ₦76,000
+    baseAmount: 7600000, // ₦76,000 in kobo
     duration: 365,
-    description: "12 months of personalized fitness and meal plans"
+    description: "12 months of personalized fitness and meal plans",
+    displayName: "Annual"
   }
 ];
 
@@ -82,6 +87,8 @@ type PaymentContextType = {
   startFreeTrial: () => void;
   formatPrice: (amount: number) => string;
   resetPaymentState: () => void;
+  upgradeUser: (plan: SubscriptionPlan, reference: string) => Promise<void>;
+  showCancelMessage: () => void;
 };
 
 const PaymentContext = createContext<PaymentContextType | undefined>(undefined);
@@ -104,6 +111,67 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     console.log("Resetting payment state");
     setLoading(false);
     setError(null);
+  };
+
+  // Upgrade user workflow
+  const upgradeUser = async (plan: SubscriptionPlan, reference: string) => {
+    if (!user || !session) {
+      throw new Error("User not authenticated");
+    }
+
+    try {
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + plan.duration);
+
+      // Update user record in database
+      const { error: updateError } = await supabase
+        .from('subscribers')
+        .upsert({
+          user_id: session.user.id,
+          email: user.email,
+          subscribed: true,
+          subscription_tier: plan.id,
+          subscription_end: expiryDate.toISOString(),
+          plan_duration: plan.duration,
+          amount_paid: plan.amount,
+          currency: 'NGN',
+          payment_reference: reference,
+          updated_at: new Date().toISOString()
+        });
+
+      if (updateError) {
+        console.error("Error updating user subscription:", updateError);
+        throw updateError;
+      }
+
+      // Update local state
+      const newSubscription: SubscriptionStatus = {
+        active: true,
+        plan,
+        expiresAt: expiryDate.toISOString()
+      };
+      
+      setSubscription(newSubscription);
+      
+      // Show success toast
+      toast.success("🎉 Upgrade successful! Welcome to premium.");
+      
+      console.log("User upgraded successfully:", {
+        plan: plan.displayName,
+        reference,
+        expiryDate: expiryDate.toISOString()
+      });
+
+    } catch (error) {
+      console.error("Error in upgradeUser workflow:", error);
+      throw error;
+    }
+  };
+
+  // Show cancel message workflow
+  const showCancelMessage = () => {
+    toast.error("❌ Payment was cancelled. Try again anytime.");
+    console.log("Payment cancelled by user");
   };
 
   useEffect(() => {
@@ -184,53 +252,27 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      // Create valid callback functions following the working pattern
-      const handlePaymentCallback = function(response: any) {
+      // Payment success callback
+      const handlePaymentSuccess = function(response: any) {
         console.log("Payment callback received:", response);
         
         if (response.status === 'success' && response.reference) {
+          console.log("Payment successful, running upgradeUser workflow");
+          
           verifyPayment(response.reference).then((success) => {
             if (success) {
-              const expiryDate = new Date();
-              expiryDate.setDate(expiryDate.getDate() + plan.duration);
-              
-              // Save to Supabase subscribers table
-              supabase
-                .from('subscribers')
-                .upsert({
-                  user_id: session.user.id,
-                  email: user.email,
-                  subscribed: true,
-                  subscription_tier: plan.id,
-                  subscription_end: expiryDate.toISOString(),
-                  plan_duration: plan.duration,
-                  amount_paid: plan.amount,
-                  currency: 'NGN',
-                  payment_reference: response.reference
-                })
-                .then(({ error: insertError }) => {
-                  if (insertError) {
-                    console.error("Error saving subscription:", insertError);
-                    toast.error("Payment successful but failed to save subscription. Please contact support.");
-                    setLoading(false);
-                    return;
-                  }
-                  
-                  const newSubscription: SubscriptionStatus = {
-                    active: true,
-                    plan,
-                    expiresAt: expiryDate.toISOString()
-                  };
-                  
-                  setSubscription(newSubscription);
-                  toast.success(`Payment successful! ${plan.name} activated.`);
-                  setLoading(false);
-                  
-                  // Reload the page to refresh the UI
-                  setTimeout(() => {
-                    window.location.reload();
-                  }, 1500);
-                });
+              upgradeUser(plan, response.reference).then(() => {
+                setLoading(false);
+                
+                // Reload page after successful upgrade
+                setTimeout(() => {
+                  window.location.reload();
+                }, 1500);
+              }).catch((err) => {
+                console.error("Error in upgradeUser workflow:", err);
+                toast.error("Payment successful but failed to upgrade account. Please contact support.");
+                setLoading(false);
+              });
             } else {
               toast.error("Payment verification failed. Please contact support.");
               setLoading(false);
@@ -241,18 +283,20 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
             setLoading(false);
           });
         } else {
+          console.log("Payment not successful:", response);
           toast.error("Payment was not successful. Please try again.");
           setLoading(false);
         }
       };
 
+      // Payment close callback
       const handlePaymentClose = function() {
-        console.log("Payment popup closed by user");
+        console.log("Payment popup closed by user, running showCancelMessage workflow");
         setLoading(false);
-        toast.info("Payment cancelled");
+        showCancelMessage();
       };
       
-      console.log("Opening Paystack popup with valid function callbacks");
+      console.log("Opening Paystack popup with proper callbacks");
       
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
@@ -260,7 +304,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         amount: plan.amount,
         currency: 'NGN',
         ref: reference,
-        callback: handlePaymentCallback,
+        callback: handlePaymentSuccess,
         onClose: handlePaymentClose
       });
       
@@ -421,7 +465,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         checkSubscription,
         startFreeTrial,
         formatPrice,
-        resetPaymentState
+        resetPaymentState,
+        upgradeUser,
+        showCancelMessage
       }}
     >
       {children}

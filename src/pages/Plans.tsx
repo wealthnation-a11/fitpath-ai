@@ -49,7 +49,7 @@ const Plans = () => {
   useEffect(() => {
     if (user) {
       checkSubscription();
-      resetPaymentState(); // Reset payment state when component loads
+      resetPaymentState();
     }
   }, [user, checkSubscription, resetPaymentState]);
 
@@ -73,7 +73,7 @@ const Plans = () => {
     }
 
     // Prevent multiple clicks during processing
-    if (generating || planLoading) {
+    if (generating || planLoading || paymentLoading) {
       console.log("Operation already in progress, ignoring click");
       return;
     }
@@ -157,8 +157,9 @@ const Plans = () => {
 
       try {
         console.log("Initiating payment for plan:", planObj);
+        // Use the payment workflow - don't call the function, pass the reference
         await initiatePayment(planObj);
-        // Payment handling is done in the payment context
+        // Payment handling is done in the payment context workflows
       } catch (error) {
         console.error("Payment failed:", error);
         toast.error("Payment failed. Please try again.");
@@ -261,7 +262,7 @@ const Plans = () => {
               value={selectedPlan}
               onValueChange={(value) => {
                 setSelectedPlan(value);
-                resetPaymentState(); // Reset payment state when plan changes
+                resetPaymentState();
               }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             >
