@@ -403,9 +403,12 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
         });
       }
       
+      // For trial users, create a 3-day free trial plan name
+      const planName = duration === 7 ? "3-Day Free Trial Plan" : `${duration}-Day Nigerian Fitness Plan`;
+      
       const newPlan: Plan = {
         id: `plan-${Date.now()}`,
-        name: `${duration}-Day Nigerian Fitness Plan`,
+        name: planName,
         duration,
         createdAt: new Date().toISOString(),
         workouts,

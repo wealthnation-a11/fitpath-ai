@@ -42,6 +42,7 @@ const PlanDetail = () => {
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showTrialUpgradeModal, setShowTrialUpgradeModal] = useState(false);
   
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
   const isTrialUser = subscription.plan?.id === "free-trial";
@@ -68,6 +69,13 @@ const PlanDetail = () => {
     if (isPremiumUser) return true;
     if (!isTrialUser) return true;
     return dayNumber <= 3; // Only show first 3 days for trial users
+  };
+
+  // Handle click on restricted days
+  const handleRestrictedDayClick = (dayNumber: number) => {
+    if (!showRestrictedContent(dayNumber)) {
+      setShowTrialUpgradeModal(true);
+    }
   };
 
   useEffect(() => {
@@ -197,7 +205,10 @@ const PlanDetail = () => {
                 <Accordion type="single" collapsible className="w-full">
                   {plan.workouts.map((workout) => (
                     <AccordionItem key={workout.day} value={`day-${workout.day}`}>
-                      <AccordionTrigger className={`text-lg font-medium ${!showRestrictedContent(workout.day) ? 'text-gray-400' : ''}`}>
+                      <AccordionTrigger 
+                        className={`text-lg font-medium ${!showRestrictedContent(workout.day) ? 'text-gray-400' : ''}`}
+                        onClick={() => handleRestrictedDayClick(workout.day)}
+                      >
                         Day {workout.day}
                         {!showRestrictedContent(workout.day) && (
                           <div className="ml-2 flex items-center text-amber-500">
@@ -266,6 +277,24 @@ const PlanDetail = () => {
                     </AccordionItem>
                   ))}
                 </Accordion>
+
+                {/* CTA after Day 3 for trial users */}
+                {isTrialUser && plan.workouts.length > 3 && (
+                  <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
+                    <h3 className="text-xl font-semibold text-amber-800 mb-2">
+                      🔓 Unlock Full Plan – Upgrade Now
+                    </h3>
+                    <p className="text-amber-700 mb-4">
+                      You've completed the first 3 days of your trial. Upgrade to unlock the full 7-Day Fitness Plan and continue your journey!
+                    </p>
+                    <Button
+                      onClick={handleUpgradeClick}
+                      className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transform transition hover:scale-105"
+                    >
+                      Unlock Full Plan – Upgrade Now
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -282,7 +311,10 @@ const PlanDetail = () => {
                 <Accordion type="single" collapsible className="w-full">
                   {plan.meals.map((meal) => (
                     <AccordionItem key={meal.day} value={`day-${meal.day}`}>
-                      <AccordionTrigger className={`text-lg font-medium ${!showRestrictedContent(meal.day) ? 'text-gray-400' : ''}`}>
+                      <AccordionTrigger 
+                        className={`text-lg font-medium ${!showRestrictedContent(meal.day) ? 'text-gray-400' : ''}`}
+                        onClick={() => handleRestrictedDayClick(meal.day)}
+                      >
                         Day {meal.day}
                         {!showRestrictedContent(meal.day) && (
                           <div className="ml-2 flex items-center text-amber-500">
@@ -352,6 +384,24 @@ const PlanDetail = () => {
                     </AccordionItem>
                   ))}
                 </Accordion>
+
+                {/* CTA after Day 3 for trial users */}
+                {isTrialUser && plan.meals.length > 3 && (
+                  <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
+                    <h3 className="text-xl font-semibold text-amber-800 mb-2">
+                      🔓 Unlock Full Meal Plan – Upgrade Now
+                    </h3>
+                    <p className="text-amber-700 mb-4">
+                      You've seen the first 3 days of your meal plan. Upgrade to unlock the full 7-Day Nigerian Meal Plan!
+                    </p>
+                    <Button
+                      onClick={handleUpgradeClick}
+                      className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transform transition hover:scale-105"
+                    >
+                      Unlock Full Meal Plan – Upgrade Now
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -403,6 +453,40 @@ const PlanDetail = () => {
                 className="bg-gradient-to-r from-amber-500 to-amber-600"
                 onClick={() => {
                   setShowUpgradeDialog(false);
+                  navigate('/plans');
+                }}
+              >
+                Upgrade Now
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Trial Upgrade Modal */}
+        <Dialog open={showTrialUpgradeModal} onOpenChange={setShowTrialUpgradeModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-xl">3-Day Free Trial</DialogTitle>
+              <DialogDescription>
+                <div className="flex flex-col items-center py-4">
+                  <Lock className="h-16 w-16 text-amber-500 mb-4" />
+                  <p className="text-center font-medium text-base mb-2">
+                    You're on a 3-day free trial
+                  </p>
+                  <p className="text-center text-sm text-muted-foreground">
+                    Upgrade now to unlock the full 7-Day Fitness Plan and continue your fitness journey with personalized workouts and meal plans.
+                  </p>
+                </div>
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setShowTrialUpgradeModal(false)}>
+                Maybe Later
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-amber-500 to-amber-600"
+                onClick={() => {
+                  setShowTrialUpgradeModal(false);
                   navigate('/plans');
                 }}
               >
