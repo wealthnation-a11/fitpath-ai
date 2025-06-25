@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Menu, X, User, LogOut, LayoutDashboard, Dumbbell } from "lucide-react";
+import { Menu, X, User, LogOut, LayoutDashboard } from "lucide-react";
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -51,11 +51,12 @@ const Navbar = () => {
     >
       <div className="container mx-auto flex justify-between items-center">
         {/* Logo */}
-        <Link to="/" className="flex items-center space-x-2">
-          <Dumbbell className="h-8 w-8 text-fitpath-blue" />
-          <span className="text-2xl font-bold bg-gradient-to-r from-fitpath-blue to-fitpath-green bg-clip-text text-transparent">
-            FitPath AI
-          </span>
+        <Link to="/" className="flex items-center">
+          <img 
+            src="/lovable-uploads/e4e753d9-bce4-4e99-b505-d6640382d6cb.png" 
+            alt="FitPath AI" 
+            className="h-12 w-auto"
+          />
         </Link>
 
         {/* Desktop Navigation */}
