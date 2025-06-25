@@ -9,16 +9,19 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, loading, session } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!loading && !user) {
+    // Only redirect if we're not loading and there's no session
+    if (!loading && !session && !user) {
+      console.log("Protected route: No valid session, redirecting to login");
       toast.error("Please log in to access this page");
       navigate("/login");
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, session, navigate]);
 
+  // Show loading state while checking authentication
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -30,11 +33,13 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!user) {
-    return null; // The navigate in useEffect will handle the redirect
+  // If we have a session or user, render the protected content
+  if (session || user) {
+    return <>{children}</>;
   }
 
-  return <>{children}</>;
+  // Return null while redirecting (navigation happens in useEffect)
+  return null;
 };
 
 export default ProtectedRoute;
