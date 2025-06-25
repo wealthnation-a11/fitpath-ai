@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -34,7 +33,7 @@ const Plans = () => {
   } = usePayment();
   const navigate = useNavigate();
 
-  const [selectedDuration, setSelectedDuration] = useState<"7" | "14" | "21" | "30">("7");
+  const [selectedDuration, setSelectedDuration] = useState<"30" | "180" | "365">("30");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
 
@@ -88,7 +87,7 @@ const Plans = () => {
         setGenerating(true);
         try {
           console.log("Generating plan for subscribed user (free trial selected)");
-          const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+          const duration = parseInt(selectedDuration) as 30 | 180 | 365;
           const plan = await createPlan(duration);
           toast.success("Plan generated successfully!");
           navigate(`/plan/${plan.id}`);
@@ -114,7 +113,7 @@ const Plans = () => {
       setGenerating(true);
       try {
         startFreeTrial();
-        const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+        const duration = parseInt(selectedDuration) as 30 | 180 | 365;
         const plan = await createPlan(duration);
         toast.success("Free trial plan generated successfully!");
         navigate(`/plan/${plan.id}`);
@@ -135,7 +134,7 @@ const Plans = () => {
         setGenerating(true);
         try {
           console.log("Generating plan for user with active subscription");
-          const duration = parseInt(selectedDuration) as 7 | 14 | 21 | 30;
+          const duration = parseInt(selectedDuration) as 30 | 180 | 365;
           const plan = await createPlan(duration);
           toast.success("Plan generated successfully!");
           navigate(`/plan/${plan.id}`);
@@ -192,6 +191,19 @@ const Plans = () => {
     return subscription.active && subscription.plan?.id === planId;
   };
 
+  const getDurationLabel = (duration: string) => {
+    switch (duration) {
+      case "30":
+        return "Month";
+      case "180":
+        return "6 Months";
+      case "365":
+        return "Year";
+      default:
+        return "Month";
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-8">
@@ -207,12 +219,12 @@ const Plans = () => {
           <CardHeader>
             <CardTitle>Plan Duration</CardTitle>
             <CardDescription>
-              Select how many days you want your fitness plan to cover
+              Select how long you want your fitness plan to cover
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {["7", "14", "21", "30"].map((duration) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {["30", "180", "365"].map((duration) => (
                 <div key={duration}>
                   <Label
                     htmlFor={`duration-${duration}`}
@@ -226,10 +238,10 @@ const Plans = () => {
                       }`}
                     >
                       <span className="block text-2xl font-bold mb-1">
-                        {duration}
+                        {getDurationLabel(duration)}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        Days
+                        {duration === "30" ? "30 Days" : duration === "180" ? "6 Months" : "1 Year"}
                       </span>
                     </div>
                   </Label>
@@ -239,7 +251,7 @@ const Plans = () => {
                     value={duration}
                     checked={selectedDuration === duration}
                     onChange={(e) =>
-                      setSelectedDuration(e.target.value as "7" | "14" | "21" | "30")
+                      setSelectedDuration(e.target.value as "30" | "180" | "365")
                     }
                     className="sr-only"
                   />
