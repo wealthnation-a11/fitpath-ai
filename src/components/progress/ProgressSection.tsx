@@ -17,20 +17,37 @@ export const ProgressSection = () => {
     lastWorkout: ''
   });
 
-  useEffect(() => {
+  const updateProgress = () => {
     if (user) {
       const userProgress = getUserProgress(user.id);
       setProgress(userProgress);
-      
-      // Set up listener for progress updates
-      const handleStorageChange = () => {
-        const updatedProgress = getUserProgress(user.id);
-        setProgress(updatedProgress);
-      };
-      
-      window.addEventListener('storage', handleStorageChange);
-      return () => window.removeEventListener('storage', handleStorageChange);
     }
+  };
+
+  useEffect(() => {
+    updateProgress();
+    
+    // Listen for storage changes from other tabs/windows
+    const handleStorageChange = () => {
+      updateProgress();
+    };
+    
+    // Listen for custom progress update events
+    const handleProgressUpdate = () => {
+      updateProgress();
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('progressUpdate', handleProgressUpdate);
+    
+    // Set up interval to refresh progress every 5 seconds when user is active
+    const interval = setInterval(updateProgress, 5000);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('progressUpdate', handleProgressUpdate);
+      clearInterval(interval);
+    };
   }, [user]);
 
   // Get recent daily progress (last 7 days)

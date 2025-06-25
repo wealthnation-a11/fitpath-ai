@@ -97,21 +97,20 @@ export const updateDailyProgress = (
     dailyProgress.workoutDuration = workoutDuration;
     dailyProgress.exercises = exercises;
     userProgress.lastWorkout = today;
+    
+    // Update total calories burned
+    userProgress.totalCaloriesBurned += caloriesBurned;
   } else {
     dailyProgress.mealPlanCompleted = true;
   }
 
-  // Update total calories burned
-  userProgress.totalCaloriesBurned += caloriesBurned;
+  // Calculate streak (consecutive days with workouts completed)
+  userProgress.streak = calculateWorkoutStreak(userProgress.dailyProgress);
 
-  // Calculate streak
-  userProgress.streak = calculateStreak(userProgress.dailyProgress);
-
-  // Calculate plan completion percentage
-  const completedDays = userProgress.dailyProgress.filter(dp => 
-    dp.workoutCompleted && dp.mealPlanCompleted
-  ).length;
-  userProgress.planCompletion = Math.round((completedDays / Math.max(userProgress.dailyProgress.length, 1)) * 100);
+  // Calculate plan completion percentage based on days with completed workouts
+  const workoutCompletedDays = userProgress.dailyProgress.filter(dp => dp.workoutCompleted).length;
+  const totalDays = Math.max(userProgress.dailyProgress.length, 1);
+  userProgress.planCompletion = Math.round((workoutCompletedDays / totalDays) * 100);
 
   // Save to localStorage
   localStorage.setItem(storageKey, JSON.stringify(userProgress));
@@ -119,7 +118,7 @@ export const updateDailyProgress = (
   return userProgress;
 };
 
-const calculateStreak = (dailyProgress: DailyProgress[]): number => {
+const calculateWorkoutStreak = (dailyProgress: DailyProgress[]): number => {
   if (dailyProgress.length === 0) return 0;
   
   // Sort by date descending (most recent first)
@@ -128,10 +127,23 @@ const calculateStreak = (dailyProgress: DailyProgress[]): number => {
   );
   
   let streak = 0;
-  for (const progress of sortedProgress) {
-    if (progress.workoutCompleted && progress.mealPlanCompleted) {
+  const today = new Date().toISOString().split('T')[0];
+  
+  // Start from today and count backwards
+  for (let i = 0; i < sortedProgress.length; i++) {
+    const progress = sortedProgress[i];
+    const progressDate = new Date(progress.date);
+    const expectedDate = new Date();
+    expectedDate.setDate(expectedDate.getDate() - i);
+    
+    // Check if this date matches the expected consecutive date
+    if (progress.date === expectedDate.toISOString().split('T')[0] && progress.workoutCompleted) {
       streak++;
-    } else {
+    } else if (i === 0 && progress.date !== today) {
+      // If today doesn't have a workout, streak is 0
+      break;
+    } else if (i > 0) {
+      // Break the streak if we find a gap
       break;
     }
   }

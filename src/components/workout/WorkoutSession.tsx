@@ -39,9 +39,16 @@ export const WorkoutSession = ({ workoutName, exercises, dayNumber, onFinish }: 
   }, [isActive]);
   
   const handleStart = useCallback(() => {
+    if (!user) return;
+    
     setIsActive(true);
     setTime(0);
-  }, []);
+    
+    // Trigger progress update to refresh the display
+    window.dispatchEvent(new CustomEvent('progressUpdate'));
+    
+    toast.success("Workout started! Good luck! 💪");
+  }, [user]);
   
   const handleFinish = useCallback(() => {
     if (!user) return;
@@ -64,7 +71,10 @@ export const WorkoutSession = ({ workoutName, exercises, dayNumber, onFinish }: 
     setCurrentStreak(updatedProgress.streak);
     setShowCongrats(true);
     
-    toast.success(`Workout completed! ${calculatedCalories} calories burned!`);
+    // Trigger progress update across the app
+    window.dispatchEvent(new CustomEvent('progressUpdate'));
+    
+    toast.success(`Workout completed! ${calculatedCalories} calories burned! 🔥`);
     
     if (onFinish) {
       onFinish(time, calculatedCalories);
