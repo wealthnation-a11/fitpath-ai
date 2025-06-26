@@ -29,7 +29,7 @@ const TawkToWidget = () => {
       }
     };
 
-    // Set widget title
+    // Set widget title and user attributes
     window.Tawk_API.onLoad = function() {
       window.Tawk_API.setAttributes({
         name: user.name,
@@ -40,7 +40,7 @@ const TawkToWidget = () => {
     // Create and append the script
     const script = document.createElement("script");
     script.async = true;
-    script.src = 'https://embed.tawk.to/1g5oh9lni/1hxxxxxx'; // Replace with your actual Widget ID
+    script.src = 'https://embed.tawk.to/1g5oh9lni/default';
     script.charset = 'UTF-8';
     script.setAttribute('crossorigin', '*');
     
