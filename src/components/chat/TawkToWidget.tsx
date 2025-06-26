@@ -13,11 +13,11 @@ const TawkToWidget = () => {
     window.Tawk_API = window.Tawk_API || {};
     window.Tawk_LoadStart = new Date();
 
-    // Set custom widget header
+    // Set widget customization
     window.Tawk_API.customStyle = {
       visibility: {
         desktop: {
-          position: 'br', // bottom-right
+          position: 'br',
           xOffset: 20,
           yOffset: 20
         },
@@ -29,12 +29,21 @@ const TawkToWidget = () => {
       }
     };
 
-    // Set widget title and user attributes
+    // Set widget title
+    window.Tawk_API.widgetTitle = 'Chat with FitPath Support';
+
+    // Set user attributes when widget loads
     window.Tawk_API.onLoad = function() {
+      console.log('Tawk.to widget loaded successfully');
       window.Tawk_API.setAttributes({
         name: user.name,
         email: user.email,
       });
+    };
+
+    // Add error handling
+    window.Tawk_API.onChatStarted = function() {
+      console.log('Chat started');
     };
 
     // Create and append the script
@@ -47,6 +56,15 @@ const TawkToWidget = () => {
     // Add the script to the document head
     document.head.appendChild(script);
 
+    // Add script load handlers
+    script.onload = () => {
+      console.log('Tawk.to script loaded successfully');
+    };
+    
+    script.onerror = () => {
+      console.error('Failed to load Tawk.to script');
+    };
+
     // Cleanup function to remove the script when component unmounts or user logs out
     return () => {
       // Remove the script
@@ -58,6 +76,14 @@ const TawkToWidget = () => {
       // Hide the widget if it exists
       if (window.Tawk_API && window.Tawk_API.hideWidget) {
         window.Tawk_API.hideWidget();
+      }
+
+      // Clean up global variables
+      if (window.Tawk_API) {
+        delete window.Tawk_API;
+      }
+      if (window.Tawk_LoadStart) {
+        delete window.Tawk_LoadStart;
       }
     };
   }, [user]);
