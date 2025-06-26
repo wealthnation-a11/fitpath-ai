@@ -3,6 +3,7 @@ import { ReactNode, useEffect } from "react";
 import Navbar from "./Navbar";
 import Footer from "./Footer";
 import { Toaster } from "@/components/ui/sonner";
+import TawkToWidget from "@/components/chat/TawkToWidget";
 
 interface LayoutProps {
   children: ReactNode;
@@ -45,6 +46,7 @@ const Layout = ({ children }: LayoutProps) => {
       </main>
       <Footer />
       <Toaster />
+      <TawkToWidget />
     </div>
   );
 };
