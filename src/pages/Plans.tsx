@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -15,12 +16,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Check, Info, Loader2 } from "lucide-react";
+import { Check, Info, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
 const Plans = () => {
   const { user } = useAuth();
-  const { createPlan, loading: planLoading } = usePlans();
+  const { createPlan, loading: planLoading, hasUsedFreeTrial } = usePlans();
   const { 
     subscription, 
     initiatePayment, 
@@ -36,6 +37,9 @@ const Plans = () => {
   const [selectedDuration, setSelectedDuration] = useState<"30" | "180" | "365">("30");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
+
+  // Check if user has already used free trial
+  const userHasUsedFreeTrial = hasUsedFreeTrial();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -101,11 +105,8 @@ const Plans = () => {
       }
 
       // Check if they've already used the free trial
-      const existingPlans = JSON.parse(localStorage.getItem(`fitpath-plans-${user.id}`) || "[]");
-      const freeTrialCount = existingPlans.length;
-      
-      if (freeTrialCount >= 1) {
-        toast.error("You have reached your free trial limit. Please upgrade to continue.");
+      if (userHasUsedFreeTrial) {
+        toast.error("You've already created your free trial plan. Upgrade to access more personalized plans.");
         return;
       }
       
@@ -113,13 +114,12 @@ const Plans = () => {
       setGenerating(true);
       try {
         startFreeTrial();
-        const duration = parseInt(selectedDuration) as 30 | 180 | 365;
-        const plan = await createPlan(duration);
+        const plan = await createPlan(7); // Create 7-day plan for trial (restricted to 3 days)
         toast.success("Free trial plan generated successfully!");
         navigate(`/plan/${plan.id}`);
       } catch (error) {
         console.error("Error generating free trial plan:", error);
-        toast.error("Failed to generate plan. Please try again.");
+        toast.error(error instanceof Error ? error.message : "Failed to generate plan. Please try again.");
       } finally {
         setGenerating(false);
       }
@@ -181,7 +181,7 @@ const Plans = () => {
     }
     
     if (selectedPlan === "free-trial") {
-      return "Start Free Trial";
+      return userHasUsedFreeTrial ? "Trial Already Used" : "Start Free Trial";
     }
     
     return "Pay & Generate Plan";
@@ -213,6 +213,23 @@ const Plans = () => {
             Choose your preferences to create a personalized fitness and meal plan
           </p>
         </div>
+
+        {/* Show warning if user has already used free trial */}
+        {userHasUsedFreeTrial && selectedPlan === "free-trial" && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium text-amber-900">Free Trial Already Used</p>
+                  <p className="text-sm text-amber-700">
+                    You've already created your free trial plan. Upgrade to access more personalized plans.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Plan Duration Card */}
         <Card>
@@ -284,12 +301,17 @@ const Plans = () => {
                     value={plan.id}
                     id={`plan-${plan.id}`}
                     className="peer sr-only"
+                    disabled={plan.id === "free-trial" && userHasUsedFreeTrial}
                   />
                   <Label
                     htmlFor={`plan-${plan.id}`}
                     className={`flex flex-col p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 ${
                       isPlanCurrentlyActive(plan.id)
                         ? "ring-2 ring-green-500 bg-green-50"
+                        : ""
+                    } ${
+                      plan.id === "free-trial" && userHasUsedFreeTrial
+                        ? "opacity-50 cursor-not-allowed"
                         : ""
                     }`}
                   >
@@ -307,9 +329,11 @@ const Plans = () => {
                       {plan.description}
                     </span>
                     {plan.id === "free-trial" && (
-                      <div className="text-xs text-amber-600 flex items-center mt-auto">
+                      <div className={`text-xs flex items-center mt-auto ${
+                        userHasUsedFreeTrial ? "text-red-600" : "text-amber-600"
+                      }`}>
                         <Info className="h-3 w-3 mr-1" />
-                        Limited to 1 plan
+                        {userHasUsedFreeTrial ? "Already used" : "Limited to 1 plan"}
                       </div>
                     )}
                   </Label>
@@ -324,7 +348,7 @@ const Plans = () => {
           <Button
             size="lg"
             onClick={handleGeneratePlan}
-            disabled={isButtonDisabled}
+            disabled={isButtonDisabled || (selectedPlan === "free-trial" && userHasUsedFreeTrial)}
             className="w-full max-w-md"
           >
             {isButtonDisabled ? (

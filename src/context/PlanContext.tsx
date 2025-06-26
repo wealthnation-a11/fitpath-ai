@@ -32,6 +32,7 @@ type PlanContextType = {
   createPlan: (duration: 30 | 180 | 365 | 7) => Promise<Plan>; // Added 7 for free trial
   savePlan: (plan: Plan) => void;
   getPlan: (id: string) => Plan | undefined;
+  hasUsedFreeTrial: () => boolean; // New function to check if user has used free trial
 };
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
@@ -308,6 +309,12 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [plans, user]);
 
+  // Check if user has already used their free trial
+  const hasUsedFreeTrial = (): boolean => {
+    if (!user) return false;
+    return plans.some(plan => plan.duration === 7);
+  };
+
   // Generate unique meals for a specific day with Nigerian focus
   const generateUniqueMealsForDay = (existingMeals: Array<{
     day: number;
@@ -383,6 +390,11 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
     
     try {
+      // Check if user is trying to create a second free trial plan
+      if (duration === 7 && hasUsedFreeTrial()) {
+        throw new Error("You've already created your free trial plan. Upgrade to access more personalized plans.");
+      }
+
       const workouts = [];
       const meals = [];
       const currentMonth = new Date().getMonth();
@@ -443,7 +455,7 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <PlanContext.Provider value={{ plans, loading, error, createPlan, savePlan, getPlan }}>
+    <PlanContext.Provider value={{ plans, loading, error, createPlan, savePlan, getPlan, hasUsedFreeTrial }}>
       {children}
     </PlanContext.Provider>
   );

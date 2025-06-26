@@ -18,15 +18,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Download, Eye, FilePlus, Clock, Quote } from "lucide-react";
+import { Download, Eye, FilePlus, Clock, Quote, ArrowUp } from "lucide-react";
 import { format } from "date-fns";
 import { TrialStatus } from "@/components/trial/TrialStatus";
 
 const Dashboard = () => {
   const { user, loading: userLoading } = useAuth();
-  const { plans, loading: plansLoading } = usePlans();
+  const { plans, loading: plansLoading, hasUsedFreeTrial } = usePlans();
   const { subscription, checkSubscription } = usePayment();
   const navigate = useNavigate();
+
+  const isTrialUser = subscription.plan?.id === "free-trial";
+  const userHasUsedFreeTrial = hasUsedFreeTrial();
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -78,6 +81,12 @@ const Dashboard = () => {
   };
 
   const handleDownloadPlan = (plan: Plan) => {
+    // Disable download for free trial plans
+    if (plan.duration === 7) {
+      navigate("/plans");
+      return;
+    }
+    
     if (subscription.plan?.id === "free-trial") {
       navigate("/plans");
       return;
@@ -171,6 +180,31 @@ const Dashboard = () => {
 
         {subscription.plan?.id === "free-trial" && <TrialStatus />}
 
+        {/* Upgrade CTA for trial users who have used their free trial */}
+        {userHasUsedFreeTrial && !subscription.active && (
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-100 rounded-full">
+                  <ArrowUp className="h-6 w-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-amber-900 mb-2">Unlock Full Access</h3>
+                  <p className="text-amber-800 mb-4">
+                    You've completed your free trial. Upgrade now to create unlimited personalized fitness and meal plans.
+                  </p>
+                  <Button
+                    onClick={() => navigate("/plans")}
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                  >
+                    Upgrade Now
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Tabs defaultValue="plans" className="space-y-6">
           <TabsList>
             <TabsTrigger value="plans">Your Plans</TabsTrigger>
@@ -209,7 +243,12 @@ const Dashboard = () => {
                     <CardHeader>
                       <CardTitle>{plan.name}</CardTitle>
                       <CardDescription>
-                        Duration: {plan.duration} days
+                        Duration: {plan.duration === 7 ? "3" : plan.duration} days
+                        {plan.duration === 7 && (
+                          <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                            Free Trial
+                          </span>
+                        )}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
@@ -228,10 +267,11 @@ const Dashboard = () => {
                       <Button
                         size="sm"
                         onClick={() => handleDownloadPlan(plan)}
-                        disabled={subscription.plan?.id === "free-trial"}
-                        className={subscription.plan?.id === "free-trial" ? "opacity-50 cursor-not-allowed" : ""}
+                        disabled={plan.duration === 7 || subscription.plan?.id === "free-trial"}
+                        className={plan.duration === 7 || subscription.plan?.id === "free-trial" ? "opacity-50 cursor-not-allowed" : ""}
                       >
-                        <Download className="mr-2 h-4 w-4" /> Download
+                        <Download className="mr-2 h-4 w-4" /> 
+                        {plan.duration === 7 ? "Premium Only" : "Download"}
                       </Button>
                     </CardFooter>
                   </Card>

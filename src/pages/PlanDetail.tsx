@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans, Plan } from "@/context/PlanContext";
@@ -27,7 +28,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Download, ArrowLeft, Lock, Info } from "lucide-react";
+import { Download, ArrowLeft, Lock, Info, ArrowUp } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
@@ -47,6 +48,7 @@ const PlanDetail = () => {
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
   const isTrialUser = subscription.plan?.id === "free-trial";
   const isTrialExpired = subscription.isTrialExpired || false;
+  const isTrialPlan = plan?.duration === 7; // 7-day plans are trial plans
   
   // Calculate if trial is expired based on start date
   useEffect(() => {
@@ -67,8 +69,8 @@ const PlanDetail = () => {
   // Function to check if content should be shown based on trial status
   const showRestrictedContent = (dayNumber: number) => {
     if (isPremiumUser) return true;
-    if (!isTrialUser) return true;
-    return dayNumber <= 3; // Only show first 3 days for trial users
+    if (!isTrialPlan) return true; // Show all content for non-trial plans
+    return dayNumber <= 3; // Only show first 3 days for trial plans
   };
 
   // Handle click on restricted days
@@ -112,6 +114,12 @@ const PlanDetail = () => {
   };
 
   const handleDownloadPlan = () => {
+    // Disable download for trial plans
+    if (isTrialPlan) {
+      setShowUpgradeDialog(true);
+      return;
+    }
+    
     if (!isPremiumUser) {
       setShowUpgradeDialog(true);
       return;
@@ -177,18 +185,49 @@ const PlanDetail = () => {
             </Button>
             <h1 className="text-3xl font-bold">{plan.name}</h1>
             <p className="text-muted-foreground">
-              Created on {formatDate(plan.createdAt)} • {plan.duration} days • Meal Plan
+              Created on {formatDate(plan.createdAt)} • {isTrialPlan ? "3" : plan.duration} days • Meal Plan
+              {isTrialPlan && (
+                <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                  Free Trial
+                </span>
+              )}
             </p>
           </div>
           
           <Button 
             onClick={handleDownloadPlan} 
-            className={`${!isPremiumUser ? 'bg-gray-400' : ''}`}
+            className={`${isTrialPlan || !isPremiumUser ? 'bg-gray-400' : ''}`}
+            disabled={isTrialPlan}
           >
             <Download className="mr-2 h-4 w-4" /> 
-            {isPremiumUser ? "Download Plan" : "Premium Feature"}
+            {isTrialPlan ? "Premium Feature" : isPremiumUser ? "Download Plan" : "Premium Feature"}
           </Button>
         </div>
+
+        {/* Upgrade CTA for trial plan users */}
+        {isTrialPlan && (
+          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-amber-100 rounded-full">
+                  <ArrowUp className="h-6 w-6 text-amber-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-amber-900 mb-2">Unlock Full Access</h3>
+                  <p className="text-amber-800 mb-4">
+                    You're viewing your 3-day free trial plan. Upgrade to unlock unlimited personalized fitness and meal plans, download functionality, and access to all days.
+                  </p>
+                  <Button
+                    onClick={handleUpgradeClick}
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
+                  >
+                    Unlock Full Access - Upgrade Now
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Tabs defaultValue="workouts" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -278,8 +317,8 @@ const PlanDetail = () => {
                   ))}
                 </Accordion>
 
-                {/* CTA after Day 3 for trial users */}
-                {isTrialUser && plan.workouts.length > 3 && (
+                {/* CTA after Day 3 for trial plans */}
+                {isTrialPlan && plan.workouts.length > 3 && (
                   <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
                     <h3 className="text-xl font-semibold text-amber-800 mb-2">
                       🔓 Unlock Full Plan – Upgrade Now
@@ -385,8 +424,8 @@ const PlanDetail = () => {
                   ))}
                 </Accordion>
 
-                {/* CTA after Day 3 for trial users */}
-                {isTrialUser && plan.meals.length > 3 && (
+                {/* CTA after Day 3 for trial plans */}
+                {isTrialPlan && plan.meals.length > 3 && (
                   <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
                     <h3 className="text-xl font-semibold text-amber-800 mb-2">
                       🔓 Unlock Full Meal Plan – Upgrade Now
