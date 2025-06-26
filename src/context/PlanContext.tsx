@@ -4,7 +4,7 @@ import { useAuth } from "./AuthContext";
 export type Plan = {
   id: string;
   name: string;
-  duration: 30 | 180 | 365;
+  duration: 30 | 180 | 365 | 7; // Added 7 for free trial
   createdAt: string;
   workouts: Array<{
     day: number;
@@ -29,7 +29,7 @@ type PlanContextType = {
   plans: Plan[];
   loading: boolean;
   error: string | null;
-  createPlan: (duration: 30 | 180 | 365) => Promise<Plan>;
+  createPlan: (duration: 30 | 180 | 365 | 7) => Promise<Plan>; // Added 7 for free trial
   savePlan: (plan: Plan) => void;
   getPlan: (id: string) => Plan | undefined;
 };
@@ -378,7 +378,7 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
-  const createPlan = async (duration: 30 | 180 | 365): Promise<Plan> => {
+  const createPlan = async (duration: 30 | 180 | 365 | 7): Promise<Plan> => {
     setLoading(true);
     setError(null);
     
