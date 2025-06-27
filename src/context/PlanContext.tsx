@@ -1,10 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
+import { usePayment } from "./PaymentContext";
+import { usePlanManager } from "@/hooks/usePlanManager";
 
 export type Plan = {
   id: string;
   name: string;
-  duration: 30 | 180 | 365 | 7; // Added 7 for free trial
+  duration: 30 | 180 | 365 | 7;
   createdAt: string;
   workouts: Array<{
     day: number;
@@ -27,12 +29,15 @@ export type Plan = {
 
 type PlanContextType = {
   plans: Plan[];
+  currentPlan: any;
   loading: boolean;
   error: string | null;
-  createPlan: (duration: 30 | 180 | 365 | 7) => Promise<Plan>; // Added 7 for free trial
+  createPlan: (duration: 30 | 180 | 365 | 7) => Promise<Plan>;
   savePlan: (plan: Plan) => void;
   getPlan: (id: string) => Plan | undefined;
-  hasUsedFreeTrial: () => boolean; // New function to check if user has used free trial
+  hasUsedFreeTrial: () => Promise<boolean>;
+  upgradePlan: (newDuration: number, subscriptionTier: string) => Promise<void>;
+  getCompletionPercentage: () => number;
 };
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
@@ -286,36 +291,33 @@ const generateUniqueExercisesForDay = (): Array<{
 
 export const PlanProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
+  const { subscription } = usePayment();
+  const planManager = usePlanManager();
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load plans from localStorage when user changes
+  // Convert database plan to legacy format for compatibility
+  const convertDbPlanToLegacyFormat = (dbPlan: any): Plan => {
+    const progressData = dbPlan.progress_data as any;
+    return {
+      id: dbPlan.plan_id,
+      name: dbPlan.plan_name,
+      duration: dbPlan.duration,
+      createdAt: dbPlan.created_at,
+      workouts: progressData?.workouts || [],
+      meals: progressData?.meals || []
+    };
+  };
+
+  // Load plans when plan manager updates
   useEffect(() => {
-    if (user) {
-      const storedPlans = localStorage.getItem(`fitpath-plans-${user.id}`);
-      if (storedPlans) {
-        setPlans(JSON.parse(storedPlans));
-      }
+    if (planManager.currentPlan) {
+      const legacyPlan = convertDbPlanToLegacyFormat(planManager.currentPlan);
+      setPlans([legacyPlan]);
     } else {
       setPlans([]);
     }
-  }, [user]);
+  }, [planManager.currentPlan]);
 
-  // Save plans to localStorage whenever they change
-  useEffect(() => {
-    if (user && plans.length > 0) {
-      localStorage.setItem(`fitpath-plans-${user.id}`, JSON.stringify(plans));
-    }
-  }, [plans, user]);
-
-  // Check if user has already used their free trial
-  const hasUsedFreeTrial = (): boolean => {
-    if (!user) return false;
-    return plans.some(plan => plan.duration === 7);
-  };
-
-  // Generate unique meals for a specific day with Nigerian focus
   const generateUniqueMealsForDay = (existingMeals: Array<{
     day: number;
     breakfast: string;
@@ -330,49 +332,21 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     afternoonSnack: string;
     dinner: string;
   } => {
-    // Get all previously used meals
     const usedBreakfasts = existingMeals.map(meal => meal.breakfast);
     const usedMidMorningSnacks = existingMeals.map(meal => meal.midMorningSnack);
     const usedLunches = existingMeals.map(meal => meal.lunch);
     const usedAfternoonSnacks = existingMeals.map(meal => meal.afternoonSnack);
     const usedDinners = existingMeals.map(meal => meal.dinner);
     
-    // Apply monthly focus filtering (simplified for demonstration)
-    let filteredBreakfasts = breakfastOptions;
-    let filteredLunches = lunchOptions;
-    
-    const focus = monthlyFocus[currentMonth as keyof typeof monthlyFocus];
-    
-    // Apply monthly focus preferences
-    if (focus === "fiber") {
-      filteredBreakfasts = breakfastOptions.filter(meal => 
-        meal.includes("oatmeal") || meal.includes("porridge") || meal.includes("whole")
-      );
-    } else if (focus === "vegetables") {
-      filteredLunches = lunchOptions.filter(meal => 
-        meal.includes("vegetable") || meal.includes("soup") || meal.includes("salad")
-      );
-    } else if (focus === "plant-based") {
-      filteredLunches = lunchOptions.filter(meal => 
-        meal.includes("beans") || meal.includes("quinoa") || meal.includes("vegetable")
-      );
-    }
-    
-    // If filtered options are too limited, use full options
-    if (filteredBreakfasts.length < 3) filteredBreakfasts = breakfastOptions;
-    if (filteredLunches.length < 3) filteredLunches = lunchOptions;
-    
-    // Find unique options
-    let availableBreakfasts = filteredBreakfasts.filter(item => !usedBreakfasts.includes(item));
+    let availableBreakfasts = breakfastOptions.filter(item => !usedBreakfasts.includes(item));
     let availableMidMorningSnacks = midMorningSnackOptions.filter(item => !usedMidMorningSnacks.includes(item));
-    let availableLunches = filteredLunches.filter(item => !usedLunches.includes(item));
+    let availableLunches = lunchOptions.filter(item => !usedLunches.includes(item));
     let availableAfternoonSnacks = afternoonSnackOptions.filter(item => !usedAfternoonSnacks.includes(item));
     let availableDinners = dinnerOptions.filter(item => !usedDinners.includes(item));
     
-    // Reset to full options if all have been used
-    if (availableBreakfasts.length === 0) availableBreakfasts = filteredBreakfasts;
+    if (availableBreakfasts.length === 0) availableBreakfasts = breakfastOptions;
     if (availableMidMorningSnacks.length === 0) availableMidMorningSnacks = midMorningSnackOptions;
-    if (availableLunches.length === 0) availableLunches = filteredLunches;
+    if (availableLunches.length === 0) availableLunches = lunchOptions;
     if (availableAfternoonSnacks.length === 0) availableAfternoonSnacks = afternoonSnackOptions;
     if (availableDinners.length === 0) availableDinners = dinnerOptions;
     
@@ -386,76 +360,130 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const createPlan = async (duration: 30 | 180 | 365 | 7): Promise<Plan> => {
-    setLoading(true);
-    setError(null);
-    
     try {
-      // Check if user is trying to create a second free trial plan
-      if (duration === 7 && hasUsedFreeTrial()) {
-        throw new Error("You've already created your free trial plan. Upgrade to access more personalized plans.");
+      // Check subscription-based duration
+      const subscriptionTier = subscription.plan?.id || 'free-trial';
+      let actualDuration = duration;
+      
+      // Map subscription to correct duration
+      if (subscriptionTier === 'monthly') {
+        actualDuration = 30;
+      } else if (subscriptionTier === 'semi-annual') {
+        actualDuration = 180;
+      } else if (subscriptionTier === 'annual') {
+        actualDuration = 365;
+      } else if (subscriptionTier === 'free-trial') {
+        actualDuration = 7; // But show as 3-day plan
       }
 
       const workouts = [];
       const meals = [];
       const currentMonth = new Date().getMonth();
       
-      for (let i = 0; i < duration; i++) {
+      for (let i = 0; i < actualDuration; i++) {
         const dayNumber = i + 1;
         
-        // Add unique workouts for this day
         workouts.push({
           day: dayNumber,
           exercises: generateUniqueExercisesForDay()
         });
         
-        // Add unique meals for this day with monthly focus
         meals.push({
           day: dayNumber,
           ...generateUniqueMealsForDay(meals, currentMonth)
         });
       }
       
-      // For trial users, create a 3-day free trial plan name
-      const planName = duration === 7 ? "3-Day Free Trial Plan" : `${duration}-Day Nigerian Fitness Plan`;
+      const planName = actualDuration === 7 ? "3-Day Free Trial Plan" : `${actualDuration}-Day Nigerian Fitness Plan`;
       
-      const newPlan: Plan = {
+      const planData = {
         id: `plan-${Date.now()}`,
         name: planName,
-        duration,
-        createdAt: new Date().toISOString(),
+        duration: actualDuration,
         workouts,
         meals
       };
       
-      setPlans((prevPlans) => [...prevPlans, newPlan]);
+      // Create plan using plan manager
+      await planManager.createPlan(planData);
+      
+      const newPlan: Plan = {
+        ...planData,
+        createdAt: new Date().toISOString()
+      };
+      
       return newPlan;
     } catch (err: any) {
-      setError(err.message);
       throw err;
-    } finally {
-      setLoading(false);
+    }
+  };
+
+  const upgradePlan = async (newDuration: number, subscriptionTier: string): Promise<void> => {
+    try {
+      const workouts = [];
+      const meals = [];
+      const currentMonth = new Date().getMonth();
+      
+      for (let i = 0; i < newDuration; i++) {
+        const dayNumber = i + 1;
+        
+        workouts.push({
+          day: dayNumber,
+          exercises: generateUniqueExercisesForDay()
+        });
+        
+        meals.push({
+          day: dayNumber,
+          ...generateUniqueMealsForDay(meals, currentMonth)
+        });
+      }
+      
+      const planName = `${newDuration}-Day Premium Plan`;
+      
+      const planData = {
+        id: `plan-${Date.now()}`,
+        name: planName,
+        duration: newDuration,
+        workouts,
+        meals
+      };
+      
+      await planManager.upgradePlan(planData, subscriptionTier);
+    } catch (err: any) {
+      throw err;
     }
   };
 
   const savePlan = (plan: Plan) => {
-    setPlans((prevPlans) => {
-      const existingPlanIndex = prevPlans.findIndex((p) => p.id === plan.id);
-      if (existingPlanIndex !== -1) {
-        const updatedPlans = [...prevPlans];
-        updatedPlans[existingPlanIndex] = plan;
-        return updatedPlans;
-      } else {
-        return [...prevPlans, plan];
-      }
-    });
+    // This is handled by the plan manager now
+    console.log('Plan saved via plan manager');
   };
 
   const getPlan = (id: string) => {
     return plans.find((plan) => plan.id === id);
   };
 
+  const hasUsedFreeTrial = (): Promise<boolean> => {
+    return planManager.hasUsedFreeTrial();
+  };
+
+  const getCompletionPercentage = (): number => {
+    return planManager.getCompletionPercentage();
+  };
+
   return (
-    <PlanContext.Provider value={{ plans, loading, error, createPlan, savePlan, getPlan, hasUsedFreeTrial }}>
+    <PlanContext.Provider value={{ 
+      plans, 
+      currentPlan: planManager.currentPlan,
+      loading: planManager.loading, 
+      error: planManager.error, 
+      createPlan, 
+      savePlan, 
+      getPlan, 
+      hasUsedFreeTrial,
+      upgradePlan,
+      getCompletionPercentage
+    }}>
       {children}
     </PlanContext.Provider>
   );
