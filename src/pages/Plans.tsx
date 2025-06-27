@@ -37,9 +37,28 @@ const Plans = () => {
   const [selectedDuration, setSelectedDuration] = useState<"30" | "180" | "365">("30");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
   const [generating, setGenerating] = useState(false);
+  const [userHasUsedFreeTrial, setUserHasUsedFreeTrial] = useState(false);
+  const [trialStatusLoading, setTrialStatusLoading] = useState(true);
 
   // Check if user has already used free trial
-  const userHasUsedFreeTrial = hasUsedFreeTrial();
+  useEffect(() => {
+    const checkTrialStatus = async () => {
+      if (user) {
+        setTrialStatusLoading(true);
+        try {
+          const hasUsed = await hasUsedFreeTrial();
+          setUserHasUsedFreeTrial(hasUsed);
+        } catch (error) {
+          console.error("Error checking trial status:", error);
+          setUserHasUsedFreeTrial(false);
+        } finally {
+          setTrialStatusLoading(false);
+        }
+      }
+    };
+
+    checkTrialStatus();
+  }, [user, hasUsedFreeTrial]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -168,12 +187,13 @@ const Plans = () => {
   };
 
   // Only disable the generate button when actually processing
-  const isButtonDisabled = generating || planLoading || paymentLoading;
+  const isButtonDisabled = generating || planLoading || paymentLoading || trialStatusLoading;
 
   const getButtonText = () => {
     if (generating) return "Generating Plan...";
     if (planLoading) return "Processing...";
     if (paymentLoading) return "Processing Payment...";
+    if (trialStatusLoading) return "Loading...";
     
     // Check if user already has the selected plan
     if (subscription.active && subscription.plan?.id === selectedPlan) {
