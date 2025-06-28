@@ -3,6 +3,7 @@ import { ReactNode, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import LoadingFallback from "@/components/LoadingFallback";
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -23,14 +24,7 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 
   // Show loading state while checking authentication
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-64 bg-gray-200 rounded mb-4"></div>
-          <div className="h-64 w-full max-w-md bg-gray-200 rounded"></div>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   // If we have a session or user, render the protected content
