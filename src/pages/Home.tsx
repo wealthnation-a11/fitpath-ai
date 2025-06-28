@@ -1,15 +1,9 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { useEffect, useState } from "react";
 
 // Local subscription plans data to avoid PaymentContext dependency
@@ -247,20 +241,18 @@ const Home = () => {
           </p>
           
           <div className="relative px-12 max-w-4xl mx-auto">
-            <Carousel className="w-full" setActiveItem={setActiveIndex} opts={{ loop: true, align: "center" }}>
-              <CarouselContent>
+            <div className="w-full">
+              <div className="flex transition-transform duration-300 ease-in-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
                 {testimonials.map((testimonial, index) => (
-                  <CarouselItem key={index}>
+                  <div key={index} className="w-full flex-shrink-0 px-4">
                     <div className="bg-fitpath-gray p-8 rounded-2xl shadow-soft transition-all duration-300 hover:shadow-hover text-center min-h-[200px] flex flex-col justify-center">
                       <p className="text-lg italic mb-6">"{testimonial.text}"</p>
                       <h3 className="font-semibold text-fitpath-blue">{testimonial.name}</h3>
                     </div>
-                  </CarouselItem>
+                  </div>
                 ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-0" />
-              <CarouselNext className="right-0" />
-            </Carousel>
+              </div>
+            </div>
             
             <div className="flex justify-center mt-6 space-x-2">
               {testimonials.map((_, index) => (
