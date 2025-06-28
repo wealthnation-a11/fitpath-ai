@@ -1,8 +1,8 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
-import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
 import {
   Carousel,
@@ -13,10 +13,37 @@ import {
 } from "@/components/ui/carousel";
 import { useEffect, useState } from "react";
 
+// Define subscription plans locally to avoid PaymentContext dependency on public pages
+const SUBSCRIPTION_PLANS = [
+  {
+    id: "free-trial",
+    name: "Free Trial",
+    baseAmount: 0,
+  },
+  {
+    id: "monthly",
+    name: "Monthly Plan",
+    baseAmount: 2500, // ₦25.00
+  },
+  {
+    id: "semi-annual",
+    name: "6-Month Plan", 
+    baseAmount: 12000, // ₦120.00
+  },
+  {
+    id: "annual",
+    name: "Annual Plan",
+    baseAmount: 20000, // ₦200.00
+  },
+];
+
+const formatPrice = (amount: number): string => {
+  return `₦${(amount / 100).toFixed(2)}`;
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { formatPrice } = usePayment();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
