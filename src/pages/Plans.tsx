@@ -2,32 +2,44 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { usePlans } from "@/context/PlanContext";
 import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
-import { useTrialStatus } from "@/hooks/useTrialStatus";
-import { usePlanGeneration } from "@/hooks/usePlanGeneration";
 import Layout from "@/components/layout/Layout";
-import { PlanDurationSelector } from "@/components/plans/PlanDurationSelector";
-import { PlanSelector } from "@/components/plans/PlanSelector";
-import { TrialWarning } from "@/components/plans/TrialWarning";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Check, Info, Loader2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 const Plans = () => {
   const { user } = useAuth();
+  const { createPlan, loading: planLoading, hasUsedFreeTrial } = usePlans();
+  const { 
+    subscription, 
+    initiatePayment, 
+    checkSubscription, 
+    startFreeTrial, 
+    loading: paymentLoading, 
+    currency,
+    formatPrice,
+    resetPaymentState
+  } = usePayment();
   const navigate = useNavigate();
-  const { userHasUsedFreeTrial, trialStatusLoading } = useTrialStatus();
-  const {
-    handleGeneratePlan,
-    getButtonText,
-    generating,
-    planLoading,
-    paymentLoading,
-    resetPaymentState,
-    checkSubscription
-  } = usePlanGeneration();
 
   const [selectedDuration, setSelectedDuration] = useState<"30" | "180" | "365">("30");
   const [selectedPlan, setSelectedPlan] = useState(SUBSCRIPTION_PLANS[0].id);
+  const [generating, setGenerating] = useState(false);
+
+  // Check if user has already used free trial
+  const userHasUsedFreeTrial = hasUsedFreeTrial();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -56,21 +68,141 @@ const Plans = () => {
     resetPaymentState();
   }, [selectedPlan, resetPaymentState]);
 
-  const onGeneratePlan = () => {
-    handleGeneratePlan(selectedPlan, selectedDuration, userHasUsedFreeTrial);
+  const handleGeneratePlan = async () => {
+    if (!user) {
+      toast.error("Please login to generate a plan");
+      navigate("/login");
+      return;
+    }
+
+    // Prevent multiple clicks during processing
+    if (generating || planLoading || paymentLoading) {
+      console.log("Operation already in progress, ignoring click");
+      return;
+    }
+
+    console.log("Starting plan generation for:", selectedPlan);
+
+    // If the user selects free trial
+    if (selectedPlan === "free-trial") {
+      // Check if they already have an active subscription
+      if (subscription.active) {
+        // If they have an active subscription, just generate the plan
+        setGenerating(true);
+        try {
+          console.log("Generating plan for subscribed user (free trial selected)");
+          const duration = parseInt(selectedDuration) as 30 | 180 | 365;
+          const plan = await createPlan(duration);
+          toast.success("Plan generated successfully!");
+          navigate(`/plan/${plan.id}`);
+        } catch (error) {
+          console.error("Error generating plan:", error);
+          toast.error("Failed to generate plan. Please try again.");
+        } finally {
+          setGenerating(false);
+        }
+        return;
+      }
+
+      // Check if they've already used the free trial
+      if (userHasUsedFreeTrial) {
+        toast.error("You've already created your free trial plan. Upgrade to access more personalized plans.");
+        return;
+      }
+      
+      // Start the free trial
+      setGenerating(true);
+      try {
+        startFreeTrial();
+        const plan = await createPlan(7); // Create 7-day plan for trial (restricted to 3 days)
+        toast.success("Free trial plan generated successfully!");
+        navigate(`/plan/${plan.id}`);
+      } catch (error) {
+        console.error("Error generating free trial plan:", error);
+        toast.error(error instanceof Error ? error.message : "Failed to generate plan. Please try again.");
+      } finally {
+        setGenerating(false);
+      }
+      return;
+    }
+
+    // Handle paid plan selection
+    if (selectedPlan !== "free-trial") {
+      // Check if user already has this plan active
+      if (subscription.active && subscription.plan?.id === selectedPlan) {
+        // User already has this plan, just generate
+        setGenerating(true);
+        try {
+          console.log("Generating plan for user with active subscription");
+          const duration = parseInt(selectedDuration) as 30 | 180 | 365;
+          const plan = await createPlan(duration);
+          toast.success("Plan generated successfully!");
+          navigate(`/plan/${plan.id}`);
+        } catch (error) {
+          console.error("Error generating plan:", error);
+          toast.error("Failed to generate plan. Please try again.");
+        } finally {
+          setGenerating(false);
+        }
+        return;
+      }
+
+      // User needs to pay for this plan
+      const planObj = SUBSCRIPTION_PLANS.find((plan) => plan.id === selectedPlan);
+      if (!planObj) {
+        toast.error("Invalid plan selected");
+        return;
+      }
+
+      try {
+        console.log("Initiating payment for plan:", planObj);
+        // Use the payment workflow - don't call the function, pass the reference
+        await initiatePayment(planObj);
+        // Payment handling is done in the payment context workflows
+      } catch (error) {
+        console.error("Payment failed:", error);
+        toast.error("Payment failed. Please try again.");
+      }
+      return;
+    }
   };
 
   // Only disable the generate button when actually processing
-  const isButtonDisabled = generating || planLoading || paymentLoading || trialStatusLoading;
+  const isButtonDisabled = generating || planLoading || paymentLoading;
 
-  const buttonText = getButtonText(
-    generating,
-    planLoading,
-    paymentLoading,
-    trialStatusLoading,
-    selectedPlan,
-    userHasUsedFreeTrial
-  );
+  const getButtonText = () => {
+    if (generating) return "Generating Plan...";
+    if (planLoading) return "Processing...";
+    if (paymentLoading) return "Processing Payment...";
+    
+    // Check if user already has the selected plan
+    if (subscription.active && subscription.plan?.id === selectedPlan) {
+      return "Generate Plan";
+    }
+    
+    if (selectedPlan === "free-trial") {
+      return userHasUsedFreeTrial ? "Trial Already Used" : "Start Free Trial";
+    }
+    
+    return "Pay & Generate Plan";
+  };
+
+  const isPlanCurrentlyActive = (planId: string) => {
+    return subscription.active && subscription.plan?.id === planId;
+  };
+
+  const getDurationLabel = (duration: string) => {
+    switch (duration) {
+      case "30":
+        return "Month";
+      case "180":
+        return "6 Months";
+      case "365":
+        return "Year";
+      default:
+        return "Month";
+    }
+  };
 
   return (
     <Layout>
@@ -82,39 +214,150 @@ const Plans = () => {
           </p>
         </div>
 
-        <TrialWarning 
-          show={userHasUsedFreeTrial && selectedPlan === "free-trial"} 
-        />
+        {/* Show warning if user has already used free trial */}
+        {userHasUsedFreeTrial && selectedPlan === "free-trial" && (
+          <Card className="border-amber-200 bg-amber-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="font-medium text-amber-900">Free Trial Already Used</p>
+                  <p className="text-sm text-amber-700">
+                    You've already created your free trial plan. Upgrade to access more personalized plans.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <PlanDurationSelector
-          selectedDuration={selectedDuration}
-          onChange={setSelectedDuration}
-        />
+        {/* Plan Duration Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Plan Duration</CardTitle>
+            <CardDescription>
+              Select how long you want your fitness plan to cover
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {["30", "180", "365"].map((duration) => (
+                <div key={duration}>
+                  <Label
+                    htmlFor={`duration-${duration}`}
+                    className="cursor-pointer"
+                  >
+                    <div
+                      className={`p-4 border rounded-lg text-center hover:border-primary transition-colors ${
+                        selectedDuration === duration
+                          ? "border-primary bg-primary/5"
+                          : ""
+                      }`}
+                    >
+                      <span className="block text-2xl font-bold mb-1">
+                        {getDurationLabel(duration)}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {duration === "30" ? "30 Days" : duration === "180" ? "6 Months" : "1 Year"}
+                      </span>
+                    </div>
+                  </Label>
+                  <input
+                    type="radio"
+                    id={`duration-${duration}`}
+                    value={duration}
+                    checked={selectedDuration === duration}
+                    onChange={(e) =>
+                      setSelectedDuration(e.target.value as "30" | "180" | "365")
+                    }
+                    className="sr-only"
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-        <PlanSelector
-          selectedPlan={selectedPlan}
-          onChange={(value) => {
-            setSelectedPlan(value);
-            resetPaymentState();
-          }}
-          userHasUsedFreeTrial={userHasUsedFreeTrial}
-        />
+        {/* Plan Selection Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Choose Your Plan</CardTitle>
+            <CardDescription>
+              Select a subscription plan that fits your needs
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={selectedPlan}
+              onValueChange={(value) => {
+                setSelectedPlan(value);
+                resetPaymentState();
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+            >
+              {SUBSCRIPTION_PLANS.map((plan) => (
+                <div key={plan.id}>
+                  <RadioGroupItem
+                    value={plan.id}
+                    id={`plan-${plan.id}`}
+                    className="peer sr-only"
+                    disabled={plan.id === "free-trial" && userHasUsedFreeTrial}
+                  />
+                  <Label
+                    htmlFor={`plan-${plan.id}`}
+                    className={`flex flex-col p-4 border rounded-lg cursor-pointer hover:border-primary transition-colors peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5 ${
+                      isPlanCurrentlyActive(plan.id)
+                        ? "ring-2 ring-green-500 bg-green-50"
+                        : ""
+                    } ${
+                      plan.id === "free-trial" && userHasUsedFreeTrial
+                        ? "opacity-50 cursor-not-allowed"
+                        : ""
+                    }`}
+                  >
+                    {isPlanCurrentlyActive(plan.id) && (
+                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full self-start mb-2 flex items-center gap-1">
+                          <Check className="h-3 w-3" />
+                          Current Plan
+                        </span>
+                    )}
+                    <span className="font-medium mb-1">{plan.name}</span>
+                    <span className="text-2xl font-bold mb-1">
+                      {plan.baseAmount === 0 ? "Free" : formatPrice(plan.baseAmount)}
+                    </span>
+                    <span className="text-sm text-muted-foreground mb-2">
+                      {plan.description}
+                    </span>
+                    {plan.id === "free-trial" && (
+                      <div className={`text-xs flex items-center mt-auto ${
+                        userHasUsedFreeTrial ? "text-red-600" : "text-amber-600"
+                      }`}>
+                        <Info className="h-3 w-3 mr-1" />
+                        {userHasUsedFreeTrial ? "Already used" : "Limited to 1 plan"}
+                      </div>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </CardContent>
+        </Card>
 
         {/* Generate Plan Button */}
         <div className="flex justify-center">
           <Button
             size="lg"
-            onClick={onGeneratePlan}
+            onClick={handleGeneratePlan}
             disabled={isButtonDisabled || (selectedPlan === "free-trial" && userHasUsedFreeTrial)}
             className="w-full max-w-md"
           >
             {isButtonDisabled ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {buttonText}
+                {getButtonText()}
               </>
             ) : (
-              buttonText
+              getButtonText()
             )}
           </Button>
         </div>

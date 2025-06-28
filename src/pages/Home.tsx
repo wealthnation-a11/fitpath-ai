@@ -1,43 +1,22 @@
-
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
+import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
 import { useEffect, useState } from "react";
-
-// Local subscription plans data to avoid PaymentContext dependency
-const SUBSCRIPTION_PLANS = [
-  {
-    id: "free-trial",
-    name: "3-Day Free Trial",
-    baseAmount: 0,
-  },
-  {
-    id: "monthly",
-    name: "Monthly Plan",
-    baseAmount: 2500, // 25 NGN in kobo
-  },
-  {
-    id: "semi-annual",
-    name: "6-Month Plan", 
-    baseAmount: 12000, // 120 NGN in kobo
-  },
-  {
-    id: "annual",
-    name: "Annual Plan",
-    baseAmount: 20000, // 200 NGN in kobo
-  },
-];
-
-// Local price formatter
-const formatPrice = (amount: number): string => {
-  return `₦${(amount / 100).toFixed(0)}`;
-};
 
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { formatPrice } = usePayment();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
@@ -94,7 +73,6 @@ const Home = () => {
 
   return (
     <Layout>
-      {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-white to-fitpath-gray rounded-2xl mb-12">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row items-center">
@@ -145,7 +123,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Features Section */}
       <section className="py-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
@@ -164,7 +141,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Pricing Section */}
       <section className="py-12 bg-gray-50 rounded-2xl">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">Simple Pricing</h2>
@@ -232,7 +208,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Testimonials Section */}
       <section className="py-16 bg-white rounded-2xl my-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">What Our Users Are Saying</h2>
@@ -241,18 +216,20 @@ const Home = () => {
           </p>
           
           <div className="relative px-12 max-w-4xl mx-auto">
-            <div className="w-full">
-              <div className="flex transition-transform duration-300 ease-in-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
+            <Carousel className="w-full" setActiveItem={setActiveIndex} opts={{ loop: true, align: "center" }}>
+              <CarouselContent>
                 {testimonials.map((testimonial, index) => (
-                  <div key={index} className="w-full flex-shrink-0 px-4">
+                  <CarouselItem key={index}>
                     <div className="bg-fitpath-gray p-8 rounded-2xl shadow-soft transition-all duration-300 hover:shadow-hover text-center min-h-[200px] flex flex-col justify-center">
                       <p className="text-lg italic mb-6">"{testimonial.text}"</p>
                       <h3 className="font-semibold text-fitpath-blue">{testimonial.name}</h3>
                     </div>
-                  </div>
+                  </CarouselItem>
                 ))}
-              </div>
-            </div>
+              </CarouselContent>
+              <CarouselPrevious className="left-0" />
+              <CarouselNext className="right-0" />
+            </Carousel>
             
             <div className="flex justify-center mt-6 space-x-2">
               {testimonials.map((_, index) => (
@@ -272,7 +249,6 @@ const Home = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
       <section className="py-20 mt-12">
         <div className="container px-4 mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
