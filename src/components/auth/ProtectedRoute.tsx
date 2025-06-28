@@ -24,10 +24,10 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   // Show loading state while checking authentication
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-64 bg-gray-200 rounded mb-4"></div>
-          <div className="h-64 w-full max-w-md bg-gray-200 rounded"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fitpath-blue mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your fitness journey...</p>
         </div>
       </div>
     );
@@ -38,8 +38,15 @@ const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <>{children}</>;
   }
 
-  // Return null while redirecting (navigation happens in useEffect)
-  return null;
+  // Show loading while redirecting
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-fitpath-blue mx-auto mb-4"></div>
+        <p className="text-gray-600">Redirecting to login...</p>
+      </div>
+    </div>
+  );
 };
 
 export default ProtectedRoute;
