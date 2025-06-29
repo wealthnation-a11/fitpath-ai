@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { usePlans, Plan } from "@/context/PlanContext";
@@ -33,12 +32,13 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { WorkoutSession } from "@/components/workout/WorkoutSession";
 import { TrialStatus } from "@/components/trial/TrialStatus";
+import { FreeTrialProgress } from "@/components/trial/FreeTrialProgress";
 import { MealTracker } from "@/components/meal/MealTracker";
 
 const PlanDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { getPlan } = usePlans();
+  const { getPlan, upgradePlan } = usePlans();
   const { subscription } = usePayment();
   const navigate = useNavigate();
   const [plan, setPlan] = useState<Plan | null>(null);
@@ -47,30 +47,14 @@ const PlanDetail = () => {
   
   const isPremiumUser = subscription.active && subscription.plan?.id !== "free-trial";
   const isTrialUser = subscription.plan?.id === "free-trial";
-  const isTrialExpired = subscription.isTrialExpired || false;
-  const isTrialPlan = plan?.duration === 7; // 7-day plans are trial plans
+  const isFreePlan = plan?.planType === 'free';
+  const FREE_TRIAL_DAYS = 3;
   
-  // Calculate if trial is expired based on start date
-  useEffect(() => {
-    if (isTrialUser && subscription.trialStartDate) {
-      const trialStart = new Date(subscription.trialStartDate);
-      const now = new Date();
-      const trialDuration = 3 * 24 * 60 * 60 * 1000; // 3 days in milliseconds
-      const timeElapsed = now.getTime() - trialStart.getTime();
-      
-      if (timeElapsed >= trialDuration) {
-        // If trial expired, redirect to plans page
-        toast.error("Your free trial has expired. Please upgrade to continue.");
-        navigate('/plans');
-      }
-    }
-  }, [isTrialUser, subscription.trialStartDate, navigate]);
-
-  // Function to check if content should be shown based on trial status
+  // Function to check if content should be shown based on free trial status
   const showRestrictedContent = (dayNumber: number) => {
     if (isPremiumUser) return true;
-    if (!isTrialPlan) return true; // Show all content for non-trial plans
-    return dayNumber <= 3; // Only show first 3 days for trial plans
+    if (!isFreePlan) return true; // Show all content for paid plans
+    return dayNumber <= FREE_TRIAL_DAYS; // Only show first 3 days for free plans
   };
 
   // Handle click on restricted days
@@ -114,8 +98,8 @@ const PlanDetail = () => {
   };
 
   const handleDownloadPlan = () => {
-    // Disable download for trial plans
-    if (isTrialPlan) {
+    // Disable download for free trial plans
+    if (isFreePlan) {
       setShowUpgradeDialog(true);
       return;
     }
@@ -164,14 +148,45 @@ const PlanDetail = () => {
     toast.info("Upgrade to a premium plan to unlock all features");
   };
 
+  const handleUpgradePlan = async () => {
+    if (!plan) return;
+    
+    try {
+      const upgradedPlan = await upgradePlan(plan.id, 30);
+      setPlan(upgradedPlan);
+      toast.success("You've unlocked your full fitness plan!");
+      setShowTrialUpgradeModal(false);
+    } catch (error) {
+      console.error('Error upgrading plan:', error);
+      // Fallback to payment flow
+      navigate("/plans");
+    }
+  };
+
   const handleWorkoutFinish = (duration: number, caloriesBurned: number) => {
     toast.success(`Workout completed! Duration: ${Math.floor(duration / 60)} minutes ${duration % 60} seconds. Calories burned: ${caloriesBurned}`);
+  };
+
+  const getCurrentDay = () => {
+    // For demo purposes, assume we're on day 2 of free trial
+    // In a real app, this would be calculated based on user progress
+    return 2;
   };
 
   return (
     <Layout>
       <div className="max-w-4xl mx-auto space-y-6">
         {isTrialUser && <TrialStatus />}
+        
+        {/* Free Trial Progress Bar */}
+        {isFreePlan && (
+          <FreeTrialProgress
+            currentDay={getCurrentDay()}
+            totalFreeDays={FREE_TRIAL_DAYS}
+            totalPlanDays={plan.duration}
+            onUpgrade={handleUpgradePlan}
+          />
+        )}
         
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -185,8 +200,8 @@ const PlanDetail = () => {
             </Button>
             <h1 className="text-3xl font-bold">{plan.name}</h1>
             <p className="text-muted-foreground">
-              Created on {formatDate(plan.createdAt)} • {isTrialPlan ? "3" : plan.duration} days • Meal Plan
-              {isTrialPlan && (
+              Created on {formatDate(plan.createdAt)} • {isFreePlan ? `${FREE_TRIAL_DAYS} days free` : `${plan.duration} days`} • Meal Plan
+              {isFreePlan && (
                 <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
                   Free Trial
                 </span>
@@ -196,38 +211,13 @@ const PlanDetail = () => {
           
           <Button 
             onClick={handleDownloadPlan} 
-            className={`${isTrialPlan || !isPremiumUser ? 'bg-gray-400' : ''}`}
-            disabled={isTrialPlan}
+            className={`${isFreePlan || !isPremiumUser ? 'bg-gray-400' : ''}`}
+            disabled={isFreePlan}
           >
             <Download className="mr-2 h-4 w-4" /> 
-            {isTrialPlan ? "Premium Feature" : isPremiumUser ? "Download Plan" : "Premium Feature"}
+            {isFreePlan ? "Premium Feature" : isPremiumUser ? "Download Plan" : "Premium Feature"}
           </Button>
         </div>
-
-        {/* Upgrade CTA for trial plan users */}
-        {isTrialPlan && (
-          <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-100 rounded-full">
-                  <ArrowUp className="h-6 w-6 text-amber-600" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-amber-900 mb-2">Unlock Full Access</h3>
-                  <p className="text-amber-800 mb-4">
-                    You're viewing your 3-day free trial plan. Upgrade to unlock unlimited personalized fitness and meal plans, download functionality, and access to all days.
-                  </p>
-                  <Button
-                    onClick={handleUpgradeClick}
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700"
-                  >
-                    Unlock Full Access - Upgrade Now
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         <Tabs defaultValue="workouts" className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -252,7 +242,7 @@ const PlanDetail = () => {
                         {!showRestrictedContent(workout.day) && (
                           <div className="ml-2 flex items-center text-amber-500">
                             <Lock className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Premium</span>
+                            <span className="text-xs">Upgrade to unlock</span>
                           </div>
                         )}
                       </AccordionTrigger>
@@ -299,15 +289,15 @@ const PlanDetail = () => {
                           <div className="p-8 text-center">
                             <div className="mx-auto bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
                               <Lock className="mx-auto h-12 w-12 text-amber-500 mb-3" />
-                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Premium Content Locked</h3>
+                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Upgrade to unlock Day {workout.day}</h3>
                               <p className="text-amber-700 mb-4">
-                                Upgrade to unlock access to this day's workout plan and all premium features.
+                                Upgrade to unlock the remaining {plan.duration - FREE_TRIAL_DAYS} days of your workout plan.
                               </p>
                               <Button
-                                onClick={handleUpgradeClick}
+                                onClick={handleUpgradePlan}
                                 className="bg-gradient-to-r from-amber-500 to-amber-600 border-none"
                               >
-                                Upgrade Now
+                                Unlock Full {plan.duration}-Day Plan
                               </Button>
                             </div>
                           </div>
@@ -316,24 +306,6 @@ const PlanDetail = () => {
                     </AccordionItem>
                   ))}
                 </Accordion>
-
-                {/* CTA after Day 3 for trial plans */}
-                {isTrialPlan && plan.workouts.length > 3 && (
-                  <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
-                    <h3 className="text-xl font-semibold text-amber-800 mb-2">
-                      🔓 Unlock Full Plan – Upgrade Now
-                    </h3>
-                    <p className="text-amber-700 mb-4">
-                      You've completed the first 3 days of your trial. Upgrade to unlock the full 7-Day Fitness Plan and continue your journey!
-                    </p>
-                    <Button
-                      onClick={handleUpgradeClick}
-                      className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transform transition hover:scale-105"
-                    >
-                      Unlock Full Plan – Upgrade Now
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -358,7 +330,7 @@ const PlanDetail = () => {
                         {!showRestrictedContent(meal.day) && (
                           <div className="ml-2 flex items-center text-amber-500">
                             <Lock className="h-4 w-4 mr-1" />
-                            <span className="text-xs">Premium</span>
+                            <span className="text-xs">Upgrade to unlock</span>
                           </div>
                         )}
                       </AccordionTrigger>
@@ -406,15 +378,15 @@ const PlanDetail = () => {
                           <div className="p-8 text-center">
                             <div className="mx-auto bg-amber-50 border border-amber-200 rounded-lg p-6 max-w-md">
                               <Lock className="mx-auto h-12 w-12 text-amber-500 mb-3" />
-                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Premium Content Locked</h3>
+                              <h3 className="text-lg font-semibold text-amber-800 mb-2">Upgrade to unlock Day {meal.day}</h3>
                               <p className="text-amber-700 mb-4">
-                                Upgrade to unlock access to this day's Nigerian meal plan and all premium features.
+                                Upgrade to unlock the remaining {plan.duration - FREE_TRIAL_DAYS} days of your meal plan.
                               </p>
                               <Button
-                                onClick={handleUpgradeClick}
+                                onClick={handleUpgradePlan}
                                 className="bg-gradient-to-r from-amber-500 to-amber-600 border-none"
                               >
-                                Upgrade Now
+                                Unlock Full Meal Plan
                               </Button>
                             </div>
                           </div>
@@ -423,51 +395,12 @@ const PlanDetail = () => {
                     </AccordionItem>
                   ))}
                 </Accordion>
-
-                {/* CTA after Day 3 for trial plans */}
-                {isTrialPlan && plan.meals.length > 3 && (
-                  <div className="mt-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-center">
-                    <h3 className="text-xl font-semibold text-amber-800 mb-2">
-                      🔓 Unlock Full Meal Plan – Upgrade Now
-                    </h3>
-                    <p className="text-amber-700 mb-4">
-                      You've seen the first 3 days of your meal plan. Upgrade to unlock the full 7-Day Nigerian Meal Plan!
-                    </p>
-                    <Button
-                      onClick={handleUpgradeClick}
-                      className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-lg shadow-lg transform transition hover:scale-105"
-                    >
-                      Unlock Full Meal Plan – Upgrade Now
-                    </Button>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
         
-        {!isPremiumUser && (
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-amber-800 flex items-start gap-3 mt-8">
-            <Info className="h-5 w-5 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="font-medium">Premium Features Locked</p>
-              <p className="text-sm mt-1">
-                {isTrialUser ? 
-                  "You're currently on a 3-day free trial. Upgrade to a premium subscription to access all days and download your fitness and meal plans." :
-                  "You're currently on the free plan. Upgrade to a premium subscription to access all features."}
-              </p>
-              <Button 
-                onClick={handleUpgradeClick} 
-                variant="outline" 
-                className="mt-3 border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800"
-              >
-                Upgrade Now
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* Premium Upgrade Dialog */}
+        {/* Upgrade dialogs */}
         <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
@@ -501,19 +434,18 @@ const PlanDetail = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Trial Upgrade Modal */}
         <Dialog open={showTrialUpgradeModal} onOpenChange={setShowTrialUpgradeModal}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle className="text-xl">3-Day Free Trial</DialogTitle>
+              <DialogTitle className="text-xl">Upgrade to unlock remaining days</DialogTitle>
               <DialogDescription>
                 <div className="flex flex-col items-center py-4">
                   <Lock className="h-16 w-16 text-amber-500 mb-4" />
                   <p className="text-center font-medium text-base mb-2">
-                    You're on a 3-day free trial
+                    You're currently on a {FREE_TRIAL_DAYS}-day free trial
                   </p>
                   <p className="text-center text-sm text-muted-foreground">
-                    Upgrade now to unlock the full 7-Day Fitness Plan and continue your fitness journey with personalized workouts and meal plans.
+                    Upgrade now to unlock the remaining {plan?.duration ? plan.duration - FREE_TRIAL_DAYS : 0} days and continue your fitness journey.
                   </p>
                 </div>
               </DialogDescription>
@@ -524,12 +456,9 @@ const PlanDetail = () => {
               </Button>
               <Button
                 className="bg-gradient-to-r from-amber-500 to-amber-600"
-                onClick={() => {
-                  setShowTrialUpgradeModal(false);
-                  navigate('/plans');
-                }}
+                onClick={handleUpgradePlan}
               >
-                Upgrade Now
+                Unlock Full Plan
               </Button>
             </DialogFooter>
           </DialogContent>

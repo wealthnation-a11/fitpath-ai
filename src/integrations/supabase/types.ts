@@ -9,6 +9,53 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      daily_progress: {
+        Row: {
+          calories_burned: number | null
+          completed_at: string | null
+          created_at: string | null
+          day_number: number
+          id: string
+          meal_completed: boolean | null
+          notes: string | null
+          user_id: string
+          user_plan_id: string
+          workout_completed: boolean | null
+        }
+        Insert: {
+          calories_burned?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          day_number: number
+          id?: string
+          meal_completed?: boolean | null
+          notes?: string | null
+          user_id: string
+          user_plan_id: string
+          workout_completed?: boolean | null
+        }
+        Update: {
+          calories_burned?: number | null
+          completed_at?: string | null
+          created_at?: string | null
+          day_number?: number
+          id?: string
+          meal_completed?: boolean | null
+          notes?: string | null
+          user_id?: string
+          user_plan_id?: string
+          workout_completed?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_progress_user_plan_id_fkey"
+            columns: ["user_plan_id"]
+            isOneToOne: false
+            referencedRelation: "user_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -39,6 +86,7 @@ export type Database = {
           created_at: string
           currency: string | null
           email: string
+          has_used_trial: boolean | null
           id: string
           payment_reference: string | null
           plan_duration: number | null
@@ -54,6 +102,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email: string
+          has_used_trial?: boolean | null
           id?: string
           payment_reference?: string | null
           plan_duration?: number | null
@@ -69,6 +118,7 @@ export type Database = {
           created_at?: string
           currency?: string | null
           email?: string
+          has_used_trial?: boolean | null
           id?: string
           payment_reference?: string | null
           plan_duration?: number | null
@@ -78,6 +128,54 @@ export type Database = {
           subscription_tier?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      user_plans: {
+        Row: {
+          created_at: string | null
+          current_day: number | null
+          days_completed: number[] | null
+          duration: number
+          id: string
+          is_active: boolean | null
+          plan_id: string
+          plan_name: string
+          plan_type: string
+          progress_data: Json | null
+          subscription_tier: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_day?: number | null
+          days_completed?: number[] | null
+          duration: number
+          id?: string
+          is_active?: boolean | null
+          plan_id: string
+          plan_name: string
+          plan_type?: string
+          progress_data?: Json | null
+          subscription_tier?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_day?: number | null
+          days_completed?: number[] | null
+          duration?: number
+          id?: string
+          is_active?: boolean | null
+          plan_id?: string
+          plan_name?: string
+          plan_type?: string
+          progress_data?: Json | null
+          subscription_tier?: string | null
+          updated_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }

@@ -1,4 +1,3 @@
-
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -18,18 +17,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Download, Eye, FilePlus, Clock, Quote, ArrowUp } from "lucide-react";
+import { Download, Eye, FilePlus, Clock, Quote, ArrowUp, Gift } from "lucide-react";
 import { format } from "date-fns";
 import { TrialStatus } from "@/components/trial/TrialStatus";
 
 const Dashboard = () => {
   const { user, loading: userLoading } = useAuth();
-  const { plans, loading: plansLoading, hasUsedFreeTrial } = usePlans();
+  const { plans, loading: plansLoading, hasUsedFreeTrial, loadUserPlans } = usePlans();
   const { subscription, checkSubscription } = usePayment();
   const navigate = useNavigate();
 
   const isTrialUser = subscription.plan?.id === "free-trial";
   const userHasUsedFreeTrial = hasUsedFreeTrial();
+  const hasFreePlan = plans.some(plan => plan.planType === 'free');
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -48,8 +48,9 @@ const Dashboard = () => {
     
     if (user) {
       checkSubscriptionStatus();
+      loadUserPlans();
     }
-  }, [checkSubscription, navigate, user]);
+  }, [checkSubscription, navigate, user, loadUserPlans]);
 
   if (userLoading || plansLoading || !user) {
     return (
@@ -82,7 +83,7 @@ const Dashboard = () => {
 
   const handleDownloadPlan = (plan: Plan) => {
     // Disable download for free trial plans
-    if (plan.duration === 7) {
+    if (plan.planType === 'free') {
       navigate("/plans");
       return;
     }
@@ -180,7 +181,32 @@ const Dashboard = () => {
 
         {subscription.plan?.id === "free-trial" && <TrialStatus />}
 
-        {/* Upgrade CTA for trial users who have used their free trial */}
+        {/* Free Trial CTA for new users */}
+        {!userHasUsedFreeTrial && !hasFreePlan && (
+          <Card className="bg-gradient-to-r from-green-50 to-emerald-50 border-green-200">
+            <CardContent className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-green-100 rounded-full">
+                  <Gift className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-green-900 mb-2">🎉 Start Your Free Trial</h3>
+                  <p className="text-green-800 mb-4">
+                    Get started with your personalized 3-day free trial. Experience our full workout and meal plans before committing.
+                  </p>
+                  <Button
+                    onClick={() => navigate("/plans")}
+                    className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700"
+                  >
+                    Start Free Trial
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Upgrade CTA for users who have used their free trial */}
         {userHasUsedFreeTrial && !subscription.active && (
           <Card className="bg-gradient-to-r from-amber-50 to-orange-50 border-amber-200">
             <CardContent className="p-6">
@@ -213,7 +239,7 @@ const Dashboard = () => {
 
           <TabsContent value="plans" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-semibold">📚 Your Previous Fitness Plans</h2>
+              <h2 className="text-2xl font-semibold">📚 Your Fitness Plans</h2>
               <Button onClick={() => navigate("/plans")}>
                 <FilePlus className="mr-2 h-4 w-4" /> Create New Plan
               </Button>
@@ -227,11 +253,15 @@ const Dashboard = () => {
                     <div className="space-y-2">
                       <h3 className="text-xl font-semibold">No plans yet</h3>
                       <p className="text-muted-foreground">
-                        You haven't created any fitness plans yet. Generate your first plan now!
+                        {!userHasUsedFreeTrial 
+                          ? "Start with a free 3-day trial to experience our personalized fitness plans!"
+                          : "You haven't created any fitness plans yet. Generate your first plan now!"
+                        }
                       </p>
                     </div>
                     <Button onClick={() => navigate("/plans")}>
-                      <FilePlus className="mr-2 h-4 w-4" /> Generate Your First Plan
+                      <FilePlus className="mr-2 h-4 w-4" /> 
+                      {!userHasUsedFreeTrial ? "Start Free Trial" : "Generate Your First Plan"}
                     </Button>
                   </div>
                 </CardContent>
@@ -239,14 +269,21 @@ const Dashboard = () => {
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {plans.map((plan) => (
-                  <Card key={plan.id}>
+                  <Card key={plan.id} className={plan.planType === 'free' ? 'border-green-200 bg-green-50/30' : ''}>
                     <CardHeader>
-                      <CardTitle>{plan.name}</CardTitle>
-                      <CardDescription>
-                        Duration: {plan.duration === 7 ? "3" : plan.duration} days
-                        {plan.duration === 7 && (
-                          <span className="ml-2 text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full">
+                      <CardTitle className="flex items-center gap-2">
+                        {plan.name}
+                        {plan.planType === 'free' && (
+                          <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
                             Free Trial
+                          </span>
+                        )}
+                      </CardTitle>
+                      <CardDescription>
+                        Duration: {plan.planType === 'free' ? "3" : plan.duration} days
+                        {plan.planType === 'free' && (
+                          <span className="block text-green-600 text-xs mt-1">
+                            Full 30-day plan available with upgrade
                           </span>
                         )}
                       </CardDescription>
@@ -267,11 +304,11 @@ const Dashboard = () => {
                       <Button
                         size="sm"
                         onClick={() => handleDownloadPlan(plan)}
-                        disabled={plan.duration === 7 || subscription.plan?.id === "free-trial"}
-                        className={plan.duration === 7 || subscription.plan?.id === "free-trial" ? "opacity-50 cursor-not-allowed" : ""}
+                        disabled={plan.planType === 'free' || subscription.plan?.id === "free-trial"}
+                        className={plan.planType === 'free' || subscription.plan?.id === "free-trial" ? "opacity-50 cursor-not-allowed" : ""}
                       >
                         <Download className="mr-2 h-4 w-4" /> 
-                        {plan.duration === 7 ? "Premium Only" : "Download"}
+                        {plan.planType === 'free' ? "Upgrade to Download" : "Download"}
                       </Button>
                     </CardFooter>
                   </Card>
@@ -318,13 +355,16 @@ const Dashboard = () => {
                     <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <h3 className="font-semibold text-yellow-800">No Active Subscription</h3>
                       <p className="text-yellow-700">
-                        You are currently on the free plan with limited features
+                        {!userHasUsedFreeTrial 
+                          ? "Start with a free 3-day trial to experience our personalized fitness plans"
+                          : "You are currently on the free plan with limited features"
+                        }
                       </p>
                     </div>
                     <Button
                       onClick={() => navigate("/plans")}
                     >
-                      Upgrade Your Plan
+                      {!userHasUsedFreeTrial ? "Start Free Trial" : "Upgrade Your Plan"}
                     </Button>
                   </div>
                 )}
