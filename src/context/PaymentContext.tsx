@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -109,7 +108,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPaymentState = () => {
-    console.log("Resetting payment state");
     setLoading(false);
     setError(null);
   };
@@ -242,8 +240,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      // Define callback functions using function declaration syntax
-      function handlePaymentSuccess(response: any) {
+      const handlePaymentSuccess = (response: any) => {
         console.log("Payment callback received:", response);
         
         if (response.status === 'success' && response.reference) {
@@ -274,13 +271,13 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
           toast.error("Payment was not successful. Please try again.");
           setLoading(false);
         }
-      }
+      };
 
-      function handlePaymentClose() {
+      const handlePaymentClose = () => {
         console.log("Payment popup closed by user");
         setLoading(false);
         showCancelMessage();
-      }
+      };
       
       console.log("Opening Paystack popup");
       
@@ -298,9 +295,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Failed to create payment handler');
       }
       
-      setTimeout(() => {
-        handler.openIframe();
-      }, 100);
+      handler.openIframe();
       
     } catch (err: any) {
       console.error("Payment initialization error:", err);
@@ -345,8 +340,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     if (!user || !session) {
       return { active: false };
     }
-    
-    setLoading(true);
     
     try {
       const { data: subscriber, error } = await supabase
@@ -412,8 +405,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error checking subscription:", err);
       setError(err.message);
       return { active: false };
-    } finally {
-      setLoading(false);
     }
   };
 

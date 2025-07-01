@@ -28,8 +28,7 @@ const Plans = () => {
     startFreeTrial, 
     loading: paymentLoading, 
     currency,
-    formatPrice,
-    resetPaymentState
+    formatPrice
   } = usePayment();
   const navigate = useNavigate();
 
@@ -48,14 +47,13 @@ const Plans = () => {
     }
   }, [user, navigate]);
 
-  // Check subscription status on load and reset payment state
+  // Check subscription status on load
   useEffect(() => {
     if (user) {
       checkSubscription();
-      resetPaymentState();
       loadUserPlans();
     }
-  }, [user, checkSubscription, resetPaymentState, loadUserPlans]);
+  }, [user, checkSubscription, loadUserPlans]);
 
   // Auto-redirect to existing free plan if user has one
   useEffect(() => {
@@ -67,18 +65,6 @@ const Plans = () => {
       }
     }
   }, [hasExistingFreePlan, userHasUsedFreeTrial, plans, navigate]);
-
-  // Reset payment state when component unmounts
-  useEffect(() => {
-    return () => {
-      resetPaymentState();
-    };
-  }, [resetPaymentState]);
-
-  // Reset payment loading when plan selection changes
-  useEffect(() => {
-    resetPaymentState();
-  }, [selectedPlan, resetPaymentState]);
 
   const handleGeneratePlan = async () => {
     if (!user) {
@@ -314,10 +300,7 @@ const Plans = () => {
           <CardContent>
             <RadioGroup
               value={selectedPlan}
-              onValueChange={(value) => {
-                setSelectedPlan(value);
-                resetPaymentState();
-              }}
+              onValueChange={setSelectedPlan}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
             >
               {/* Free Trial Option - Show first for new users */}
