@@ -242,7 +242,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      // Define callback functions as proper function declarations for Paystack validation
+      // Define callback functions using function declaration syntax
       function handlePaymentSuccess(response: any) {
         console.log("Payment callback received:", response);
         
@@ -260,10 +260,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
               return Promise.reject("Verification failed");
             }
           }).then(() => {
-            // Reset loading state after successful upgrade
             setLoading(false);
-            
-            // Refresh page after short delay to show success message
             setTimeout(() => {
               window.location.reload();
             }, 1500);
@@ -301,7 +298,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Failed to create payment handler');
       }
       
-      // Brief delay to ensure loading state is set before opening modal
       setTimeout(() => {
         handler.openIframe();
       }, 100);
