@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePlans, Plan } from "@/context/PlanContext";
@@ -26,6 +27,7 @@ const Dashboard = () => {
   const { plans, loading: plansLoading, hasUsedFreeTrial, loadUserPlans } = usePlans();
   const { subscription, checkSubscription } = usePayment();
   const navigate = useNavigate();
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
 
   const isTrialUser = subscription.plan?.id === "free-trial";
   const userHasUsedFreeTrial = hasUsedFreeTrial();
@@ -39,20 +41,28 @@ const Dashboard = () => {
 
   useEffect(() => {
     const checkSubscriptionStatus = async () => {
-      const subscriptionStatus = await checkSubscription();
+      if (!user || subscriptionChecked) return;
       
-      if (subscriptionStatus.isTrialExpired) {
-        navigate("/plans");
+      try {
+        const subscriptionStatus = await checkSubscription();
+        setSubscriptionChecked(true);
+        
+        if (subscriptionStatus.isTrialExpired) {
+          navigate("/plans");
+        }
+      } catch (error) {
+        console.error("Error checking subscription:", error);
+        setSubscriptionChecked(true);
       }
     };
     
-    if (user) {
+    if (user && !subscriptionChecked) {
       checkSubscriptionStatus();
       loadUserPlans();
     }
-  }, [checkSubscription, navigate, user, loadUserPlans]);
+  }, [user, subscriptionChecked, checkSubscription, navigate, loadUserPlans]);
 
-  if (userLoading || plansLoading || !user) {
+  if (userLoading || plansLoading || !user || !subscriptionChecked) {
     return (
       <Layout>
         <div className="flex justify-center items-center min-h-[60vh]">
@@ -82,7 +92,6 @@ const Dashboard = () => {
   };
 
   const handleDownloadPlan = (plan: Plan) => {
-    // Disable download for free trial plans
     if (plan.planType === 'free') {
       navigate("/plans");
       return;
