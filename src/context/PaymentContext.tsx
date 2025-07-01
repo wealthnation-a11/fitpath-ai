@@ -190,13 +190,11 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    console.log("Setting loading to true for payment initiation");
+    console.log("Starting payment initiation for plan:", plan.name);
     setLoading(true);
     setError(null);
     
     try {
-      console.log("Starting payment initiation for plan:", plan.name);
-      
       if (!PAYSTACK_PUBLIC_KEY) {
         throw new Error("Payment system not configured. Please contact support.");
       }
@@ -243,34 +241,36 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      const handlePaymentSuccess = (response: any) => {
+      const handlePaymentSuccess = async (response: any) => {
         console.log("Payment callback received:", response);
         
         if (response.status === 'success' && response.reference) {
-          console.log("Payment successful, running upgradeUser workflow");
+          console.log("Payment successful, verifying transaction");
           
-          verifyPayment(response.reference).then((success) => {
-            if (success) {
-              upgradeUser(plan, response.reference).then(() => {
-                setLoading(false);
-                
-                setTimeout(() => {
-                  window.location.reload();
-                }, 1500);
-              }).catch((err) => {
-                console.error("Error in upgradeUser workflow:", err);
-                toast.error("Payment successful but failed to upgrade account. Please contact support.");
-                setLoading(false);
-              });
+          try {
+            const verificationSuccess = await verifyPayment(response.reference);
+            
+            if (verificationSuccess) {
+              console.log("Payment verified, upgrading user");
+              await upgradeUser(plan, response.reference);
+              
+              // Reset loading state after successful upgrade
+              setLoading(false);
+              
+              // Refresh page after short delay to show success message
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
             } else {
+              console.error("Payment verification failed");
               toast.error("Payment verification failed. Please contact support.");
               setLoading(false);
             }
-          }).catch((err) => {
-            console.error("Error in payment verification:", err);
+          } catch (err) {
+            console.error("Error in payment verification or upgrade:", err);
             toast.error("Payment processing error. Please contact support.");
             setLoading(false);
-          });
+          }
         } else {
           console.log("Payment not successful:", response);
           toast.error("Payment was not successful. Please try again.");
@@ -279,12 +279,12 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       };
 
       const handlePaymentClose = () => {
-        console.log("Payment popup closed by user, running showCancelMessage workflow");
+        console.log("Payment popup closed by user");
         setLoading(false);
         showCancelMessage();
       };
       
-      console.log("Opening Paystack popup with proper callbacks");
+      console.log("Opening Paystack popup");
       
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
@@ -300,7 +300,10 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error('Failed to create payment handler');
       }
       
-      handler.openIframe();
+      // Brief delay to ensure loading state is set before opening modal
+      setTimeout(() => {
+        handler.openIframe();
+      }, 100);
       
     } catch (err: any) {
       console.error("Payment initialization error:", err);
