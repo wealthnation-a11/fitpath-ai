@@ -1,3 +1,4 @@
+
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -241,48 +242,48 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      const handlePaymentSuccess = async (response: any) => {
+      // Define callback functions as proper function declarations for Paystack validation
+      function handlePaymentSuccess(response: any) {
         console.log("Payment callback received:", response);
         
         if (response.status === 'success' && response.reference) {
           console.log("Payment successful, verifying transaction");
           
-          try {
-            const verificationSuccess = await verifyPayment(response.reference);
-            
-            if (verificationSuccess) {
+          verifyPayment(response.reference).then((success) => {
+            if (success) {
               console.log("Payment verified, upgrading user");
-              await upgradeUser(plan, response.reference);
-              
-              // Reset loading state after successful upgrade
-              setLoading(false);
-              
-              // Refresh page after short delay to show success message
-              setTimeout(() => {
-                window.location.reload();
-              }, 1500);
+              return upgradeUser(plan, response.reference);
             } else {
               console.error("Payment verification failed");
               toast.error("Payment verification failed. Please contact support.");
               setLoading(false);
+              return Promise.reject("Verification failed");
             }
-          } catch (err) {
+          }).then(() => {
+            // Reset loading state after successful upgrade
+            setLoading(false);
+            
+            // Refresh page after short delay to show success message
+            setTimeout(() => {
+              window.location.reload();
+            }, 1500);
+          }).catch((err) => {
             console.error("Error in payment verification or upgrade:", err);
             toast.error("Payment processing error. Please contact support.");
             setLoading(false);
-          }
+          });
         } else {
           console.log("Payment not successful:", response);
           toast.error("Payment was not successful. Please try again.");
           setLoading(false);
         }
-      };
+      }
 
-      const handlePaymentClose = () => {
+      function handlePaymentClose() {
         console.log("Payment popup closed by user");
         setLoading(false);
         showCancelMessage();
-      };
+      }
       
       console.log("Opening Paystack popup");
       
