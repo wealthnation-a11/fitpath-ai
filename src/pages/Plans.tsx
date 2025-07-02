@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { usePlans } from "@/context/PlanContext";
-import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
+import { usePayment } from "@/context/PaymentContext";
+import { SUBSCRIPTION_PLANS } from "@/constants/payment";
 import Layout from "@/components/layout/Layout";
 import {
   Card,
