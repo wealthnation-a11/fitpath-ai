@@ -141,6 +141,7 @@ export type Database = {
           is_active: boolean | null
           plan_id: string
           plan_name: string
+          plan_type: string
           progress_data: Json | null
           subscription_tier: string | null
           updated_at: string | null
@@ -155,6 +156,7 @@ export type Database = {
           is_active?: boolean | null
           plan_id: string
           plan_name: string
+          plan_type?: string
           progress_data?: Json | null
           subscription_tier?: string | null
           updated_at?: string | null
@@ -169,6 +171,7 @@ export type Database = {
           is_active?: boolean | null
           plan_id?: string
           plan_name?: string
+          plan_type?: string
           progress_data?: Json | null
           subscription_tier?: string | null
           updated_at?: string | null

@@ -1,13 +1,14 @@
+
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
-import { usePayment } from "./PaymentContext";
-import { usePlanManager } from "@/hooks/usePlanManager";
+import { supabase } from "@/integrations/supabase/client";
 
 export type Plan = {
   id: string;
   name: string;
-  duration: 30 | 180 | 365 | 7;
+  duration: 30 | 180 | 365 | 7; // Added 7 for free trial
   createdAt: string;
+  planType: 'free' | 'paid';
   workouts: Array<{
     day: number;
     exercises: Array<{
@@ -29,15 +30,14 @@ export type Plan = {
 
 type PlanContextType = {
   plans: Plan[];
-  currentPlan: any;
   loading: boolean;
   error: string | null;
-  createPlan: (duration: 30 | 180 | 365 | 7) => Promise<Plan>;
-  savePlan: (plan: Plan) => void;
+  createPlan: (duration: 30 | 180 | 365 | 7, planType?: 'free' | 'paid') => Promise<Plan>;
+  savePlan: (plan: Plan) => Promise<void>;
   getPlan: (id: string) => Plan | undefined;
-  hasUsedFreeTrial: () => Promise<boolean>;
-  upgradePlan: (newDuration: number, subscriptionTier: string) => Promise<void>;
-  getCompletionPercentage: () => number;
+  hasUsedFreeTrial: () => boolean;
+  loadUserPlans: () => Promise<void>;
+  upgradePlan: (planId: string, newDuration: 30 | 180 | 365) => Promise<Plan>;
 };
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
@@ -291,33 +291,59 @@ const generateUniqueExercisesForDay = (): Array<{
 
 export const PlanProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const { subscription } = usePayment();
-  const planManager = usePlanManager();
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Convert database plan to legacy format for compatibility
-  const convertDbPlanToLegacyFormat = (dbPlan: any): Plan => {
-    const progressData = dbPlan.progress_data as any;
-    return {
-      id: dbPlan.plan_id,
-      name: dbPlan.plan_name,
-      duration: dbPlan.duration,
-      createdAt: dbPlan.created_at,
-      workouts: progressData?.workouts || [],
-      meals: progressData?.meals || []
-    };
-  };
-
-  // Load plans when plan manager updates
+  // Load plans from Supabase when user changes
   useEffect(() => {
-    if (planManager.currentPlan) {
-      const legacyPlan = convertDbPlanToLegacyFormat(planManager.currentPlan);
-      setPlans([legacyPlan]);
+    if (user) {
+      loadUserPlans();
     } else {
       setPlans([]);
     }
-  }, [planManager.currentPlan]);
+  }, [user]);
 
+  // Check if user has already used their free trial
+  const hasUsedFreeTrial = (): boolean => {
+    if (!user) return false;
+    return plans.some(plan => plan.planType === 'free');
+  };
+
+  // Load user plans from Supabase
+  const loadUserPlans = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('user_plans')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const loadedPlans: Plan[] = data?.map(dbPlan => ({
+        id: dbPlan.id,
+        name: dbPlan.plan_name,
+        duration: dbPlan.duration,
+        planType: dbPlan.plan_type as 'free' | 'paid',
+        createdAt: dbPlan.created_at || new Date().toISOString(),
+        workouts: JSON.parse(dbPlan.progress_data || '{}').workouts || [],
+        meals: JSON.parse(dbPlan.progress_data || '{}').meals || []
+      })) || [];
+
+      setPlans(loadedPlans);
+    } catch (err: any) {
+      console.error('Error loading plans:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Generate unique meals for a specific day with Nigerian focus
   const generateUniqueMealsForDay = (existingMeals: Array<{
     day: number;
     breakfast: string;
@@ -332,21 +358,44 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     afternoonSnack: string;
     dinner: string;
   } => {
+    // Get all previously used meals
     const usedBreakfasts = existingMeals.map(meal => meal.breakfast);
     const usedMidMorningSnacks = existingMeals.map(meal => meal.midMorningSnack);
     const usedLunches = existingMeals.map(meal => meal.lunch);
     const usedAfternoonSnacks = existingMeals.map(meal => meal.afternoonSnack);
     const usedDinners = existingMeals.map(meal => meal.dinner);
     
-    let availableBreakfasts = breakfastOptions.filter(item => !usedBreakfasts.includes(item));
+    let filteredBreakfasts = breakfastOptions;
+    let filteredLunches = lunchOptions;
+    
+    const focus = monthlyFocus[currentMonth as keyof typeof monthlyFocus];
+    
+    if (focus === "fiber") {
+      filteredBreakfasts = breakfastOptions.filter(meal => 
+        meal.includes("oatmeal") || meal.includes("porridge") || meal.includes("whole")
+      );
+    } else if (focus === "vegetables") {
+      filteredLunches = lunchOptions.filter(meal => 
+        meal.includes("vegetable") || meal.includes("soup") || meal.includes("salad")
+      );
+    } else if (focus === "plant-based") {
+      filteredLunches = lunchOptions.filter(meal => 
+        meal.includes("beans") || meal.includes("quinoa") || meal.includes("vegetable")
+      );
+    }
+    
+    if (filteredBreakfasts.length < 3) filteredBreakfasts = breakfastOptions;
+    if (filteredLunches.length < 3) filteredLunches = lunchOptions;
+    
+    let availableBreakfasts = filteredBreakfasts.filter(item => !usedBreakfasts.includes(item));
     let availableMidMorningSnacks = midMorningSnackOptions.filter(item => !usedMidMorningSnacks.includes(item));
-    let availableLunches = lunchOptions.filter(item => !usedLunches.includes(item));
+    let availableLunches = filteredLunches.filter(item => !usedLunches.includes(item));
     let availableAfternoonSnacks = afternoonSnackOptions.filter(item => !usedAfternoonSnacks.includes(item));
     let availableDinners = dinnerOptions.filter(item => !usedDinners.includes(item));
     
-    if (availableBreakfasts.length === 0) availableBreakfasts = breakfastOptions;
+    if (availableBreakfasts.length === 0) availableBreakfasts = filteredBreakfasts;
     if (availableMidMorningSnacks.length === 0) availableMidMorningSnacks = midMorningSnackOptions;
-    if (availableLunches.length === 0) availableLunches = lunchOptions;
+    if (availableLunches.length === 0) availableLunches = filteredLunches;
     if (availableAfternoonSnacks.length === 0) availableAfternoonSnacks = afternoonSnackOptions;
     if (availableDinners.length === 0) availableDinners = dinnerOptions;
     
@@ -359,26 +408,26 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
     };
   };
 
-  const createPlan = async (duration: 30 | 180 | 365 | 7): Promise<Plan> => {
+  const createPlan = async (duration: 30 | 180 | 365 | 7, planType: 'free' | 'paid' = 'paid'): Promise<Plan> => {
+    setLoading(true);
+    setError(null);
+    
     try {
-      // Check subscription-based duration
-      const subscriptionTier = subscription.plan?.id || 'free-trial';
-      let actualDuration = duration;
-      
-      // Map subscription to correct duration
-      if (subscriptionTier === 'monthly') {
-        actualDuration = 30;
-      } else if (subscriptionTier === 'semi-annual') {
-        actualDuration = 180;
-      } else if (subscriptionTier === 'annual') {
-        actualDuration = 365;
-      } else if (subscriptionTier === 'free-trial') {
-        actualDuration = 7; // But show as 3-day plan
+      if (!user) {
+        throw new Error("Please login to generate a plan");
+      }
+
+      // Check if user is trying to create a second free trial plan
+      if (planType === 'free' && hasUsedFreeTrial()) {
+        throw new Error("You've already created your free trial plan. Upgrade to access more personalized plans.");
       }
 
       const workouts = [];
       const meals = [];
       const currentMonth = new Date().getMonth();
+      
+      // For free trials, generate full 30 days but limit access to 3
+      const actualDuration = planType === 'free' ? 30 : duration;
       
       for (let i = 0; i < actualDuration; i++) {
         const dayNumber = i + 1;
@@ -394,95 +443,113 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
         });
       }
       
-      const planName = actualDuration === 7 ? "3-Day Free Trial Plan" : `${actualDuration}-Day Nigerian Fitness Plan`;
-      
-      const planData = {
-        id: `plan-${Date.now()}`,
-        name: planName,
-        duration: actualDuration,
-        workouts,
-        meals
-      };
-      
-      // Create plan using plan manager
-      await planManager.createPlan(planData);
+      const planName = planType === 'free' ? "3-Day Free Trial Plan" : `${duration}-Day Nigerian Fitness Plan`;
       
       const newPlan: Plan = {
-        ...planData,
-        createdAt: new Date().toISOString()
-      };
-      
-      return newPlan;
-    } catch (err: any) {
-      throw err;
-    }
-  };
-
-  const upgradePlan = async (newDuration: number, subscriptionTier: string): Promise<void> => {
-    try {
-      const workouts = [];
-      const meals = [];
-      const currentMonth = new Date().getMonth();
-      
-      for (let i = 0; i < newDuration; i++) {
-        const dayNumber = i + 1;
-        
-        workouts.push({
-          day: dayNumber,
-          exercises: generateUniqueExercisesForDay()
-        });
-        
-        meals.push({
-          day: dayNumber,
-          ...generateUniqueMealsForDay(meals, currentMonth)
-        });
-      }
-      
-      const planName = `${newDuration}-Day Premium Plan`;
-      
-      const planData = {
         id: `plan-${Date.now()}`,
         name: planName,
-        duration: newDuration,
+        duration: actualDuration as 30 | 180 | 365 | 7,
+        planType,
+        createdAt: new Date().toISOString(),
         workouts,
         meals
       };
+
+      // Save to Supabase
+      const { error: dbError } = await supabase
+        .from('user_plans')
+        .insert({
+          id: newPlan.id,
+          user_id: user.id,
+          plan_name: newPlan.name,
+          duration: newPlan.duration,
+          plan_type: newPlan.planType,
+          progress_data: JSON.stringify({
+            workouts: newPlan.workouts,
+            meals: newPlan.meals
+          })
+        });
+
+      if (dbError) throw dbError;
       
-      await planManager.upgradePlan(planData, subscriptionTier);
+      setPlans((prevPlans) => [...prevPlans, newPlan]);
+      return newPlan;
     } catch (err: any) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const savePlan = async (plan: Plan) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('user_plans')
+        .upsert({
+          id: plan.id,
+          user_id: user.id,
+          plan_name: plan.name,
+          duration: plan.duration,
+          plan_type: plan.planType,
+          progress_data: JSON.stringify({
+            workouts: plan.workouts,
+            meals: plan.meals
+          })
+        });
+
+      if (error) throw error;
+
+      setPlans((prevPlans) => {
+        const existingPlanIndex = prevPlans.findIndex((p) => p.id === plan.id);
+        if (existingPlanIndex !== -1) {
+          const updatedPlans = [...prevPlans];
+          updatedPlans[existingPlanIndex] = plan;
+          return updatedPlans;
+        } else {
+          return [...prevPlans, plan];
+        }
+      });
+    } catch (err: any) {
+      setError(err.message);
       throw err;
     }
   };
 
-  const savePlan = (plan: Plan) => {
-    // This is handled by the plan manager now
-    console.log('Plan saved via plan manager');
+  const upgradePlan = async (planId: string, newDuration: 30 | 180 | 365): Promise<Plan> => {
+    const planToUpgrade = plans.find(p => p.id === planId);
+    if (!planToUpgrade) {
+      throw new Error("Plan not found");
+    }
+
+    const upgradedPlan: Plan = {
+      ...planToUpgrade,
+      planType: 'paid',
+      duration: newDuration,
+      name: `${newDuration}-Day Nigerian Fitness Plan`
+    };
+
+    await savePlan(upgradedPlan);
+    return upgradedPlan;
   };
 
   const getPlan = (id: string) => {
     return plans.find((plan) => plan.id === id);
   };
 
-  const hasUsedFreeTrial = (): Promise<boolean> => {
-    return planManager.hasUsedFreeTrial();
-  };
-
-  const getCompletionPercentage = (): number => {
-    return planManager.getCompletionPercentage();
-  };
-
   return (
     <PlanContext.Provider value={{ 
       plans, 
-      currentPlan: planManager.currentPlan,
-      loading: planManager.loading, 
-      error: planManager.error, 
+      loading, 
+      error, 
       createPlan, 
       savePlan, 
       getPlan, 
-      hasUsedFreeTrial,
-      upgradePlan,
-      getCompletionPercentage
+      hasUsedFreeTrial, 
+      loadUserPlans,
+      upgradePlan 
     }}>
       {children}
     </PlanContext.Provider>
