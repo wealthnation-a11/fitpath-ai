@@ -117,6 +117,8 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       throw new Error("User not authenticated");
     }
 
+    console.log("Starting upgradeUser workflow for:", { planId: plan.id, reference });
+
     try {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + plan.duration);
@@ -240,35 +242,34 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      const handlePaymentSuccess = (response: any) => {
-        console.log("Payment callback received:", response);
+      const handlePaymentSuccess = async (response: any) => {
+        console.log("Payment success callback triggered:", response);
         
-        if (response.status === 'success' && response.reference) {
-          console.log("Payment successful, verifying transaction");
-          
-          verifyPayment(response.reference).then((success) => {
-            if (success) {
+        try {
+          if (response.status === 'success' && response.reference) {
+            console.log("Payment successful, verifying transaction");
+            
+            const verified = await verifyPayment(response.reference);
+            if (verified) {
               console.log("Payment verified, upgrading user");
-              return upgradeUser(plan, response.reference);
+              await upgradeUser(plan, response.reference);
+              setLoading(false);
+              setTimeout(() => {
+                window.location.reload();
+              }, 1500);
             } else {
               console.error("Payment verification failed");
               toast.error("Payment verification failed. Please contact support.");
               setLoading(false);
-              return Promise.reject("Verification failed");
             }
-          }).then(() => {
+          } else {
+            console.log("Payment not successful:", response);
+            toast.error("Payment was not successful. Please try again.");
             setLoading(false);
-            setTimeout(() => {
-              window.location.reload();
-            }, 1500);
-          }).catch((err) => {
-            console.error("Error in payment verification or upgrade:", err);
-            toast.error("Payment processing error. Please contact support.");
-            setLoading(false);
-          });
-        } else {
-          console.log("Payment not successful:", response);
-          toast.error("Payment was not successful. Please try again.");
+          }
+        } catch (err) {
+          console.error("Error in payment success handler:", err);
+          toast.error("Payment processing error. Please contact support.");
           setLoading(false);
         }
       };
@@ -279,7 +280,13 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         showCancelMessage();
       };
       
-      console.log("Opening Paystack popup");
+      console.log("Opening Paystack popup with config:", {
+        key: PAYSTACK_PUBLIC_KEY.substring(0, 10) + "...",
+        email: user.email,
+        amount: plan.amount,
+        currency: 'NGN',
+        ref: reference
+      });
       
       const handler = window.PaystackPop.setup({
         key: PAYSTACK_PUBLIC_KEY,
