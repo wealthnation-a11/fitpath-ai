@@ -2,7 +2,6 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
-import { usePayment, SUBSCRIPTION_PLANS } from "@/context/PaymentContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
 import {
   Carousel,
@@ -16,7 +15,6 @@ import { useEffect, useState } from "react";
 const Home = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { formatPrice } = usePayment();
   const [activeIndex, setActiveIndex] = useState(0);
 
   const features = [
@@ -135,73 +133,6 @@ const Home = () => {
                 <div className="flex justify-center mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-semibold text-center mb-2">{feature.title}</h3>
                 <p className="text-gray-600 text-center">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="py-12 bg-gray-50 rounded-2xl">
-        <div className="container px-4 mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-4">Simple Pricing</h2>
-          <p className="text-xl text-gray-600 text-center mb-12">
-            Choose the plan that works best for you
-          </p>
-          <div className="grid md:grid-cols-4 gap-8">
-            {SUBSCRIPTION_PLANS.map((plan) => (
-              <div
-                key={plan.id}
-                className={`bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ${
-                  plan.id === "monthly" ? "border-2 border-fitpath-blue" : ""
-                }`}
-              >
-                {plan.id === "monthly" && (
-                  <div className="bg-fitpath-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase mb-4 mx-auto w-fit">
-                    Most Popular
-                  </div>
-                )}
-                <h3 className="text-xl font-semibold text-center mb-2">{plan.name}</h3>
-                <div className="text-center mb-4">
-                  <span className="text-3xl font-bold">
-                    {plan.baseAmount === 0 ? "Free" : formatPrice(plan.baseAmount)}
-                  </span>
-                  {plan.baseAmount > 0 && (
-                    <span className="text-gray-600"> / {plan.id === "monthly" ? "month" : plan.id}</span>
-                  )}
-                </div>
-                <ul className="space-y-2 mb-8">
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Personalized Fitness Plans</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Customized Meal Plans</span>
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-2" />
-                    <span>Plan History & Download</span>
-                  </li>
-                  {plan.id !== "free-trial" && (
-                    <li className="flex items-center">
-                      <Check className="h-5 w-5 text-green-500 mr-2" />
-                      <span>Priority Support</span>
-                    </li>
-                  )}
-                </ul>
-                <Button
-                  className={`w-full ${
-                    plan.id === "free-trial"
-                      ? "bg-gray-100 hover:bg-gray-200 text-gray-800"
-                      : plan.id === "monthly"
-                      ? "bg-fitpath-blue hover:bg-blue-600 text-white"
-                      : ""
-                  }`}
-                  variant={plan.id === "free-trial" ? "outline" : "default"}
-                  onClick={() => navigate("/plans")}
-                >
-                  {plan.id === "free-trial" ? "Start Free Trial" : "Choose Plan"}
-                </Button>
               </div>
             ))}
           </div>

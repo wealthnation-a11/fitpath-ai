@@ -7,7 +7,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { PlanProvider } from "./context/PlanContext";
-import { PaymentProvider } from "./context/PaymentContext";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 
 // Pages
@@ -29,7 +28,6 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <PlanProvider>
-        <PaymentProvider>
           <TooltipProvider>
             <Toaster />
             <Sonner />
@@ -66,7 +64,6 @@ const App = () => (
               </Routes>
             </BrowserRouter>
           </TooltipProvider>
-        </PaymentProvider>
       </PlanProvider>
     </AuthProvider>
   </QueryClientProvider>
