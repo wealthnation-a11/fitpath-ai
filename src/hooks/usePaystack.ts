@@ -80,18 +80,26 @@ export const usePaystack = (user: any, session: any) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      const handlePaymentSuccess = async (response: any) => {
+      // Define callback functions outside the setup to ensure they're valid
+      const paymentSuccessCallback = (response: any) => {
         console.log("Payment success callback triggered:", response);
         
-        try {
-          if (response.status === 'success' && response.reference) {
-            console.log("Payment successful, verifying transaction");
-            
-            const verified = await PaymentService.verifyPayment(response.reference);
-            if (verified) {
-              console.log("Payment verified, upgrading user");
-              await PaymentService.upgradeUser(plan, response.reference, user, session);
-              
+        if (response.status === 'success' && response.reference) {
+          console.log("Payment successful, verifying transaction");
+          
+          PaymentService.verifyPayment(response.reference)
+            .then((verified) => {
+              if (verified) {
+                console.log("Payment verified, upgrading user");
+                return PaymentService.upgradeUser(plan, response.reference, user, session);
+              } else {
+                console.error("Payment verification failed");
+                toast.error("Payment verification failed. Please contact support.");
+                setLoading(false);
+                return Promise.reject(new Error("Payment verification failed"));
+              }
+            })
+            .then(() => {
               const expiryDate = new Date();
               expiryDate.setDate(expiryDate.getDate() + plan.duration);
               
@@ -101,24 +109,20 @@ export const usePaystack = (user: any, session: any) => {
               setTimeout(() => {
                 window.location.reload();
               }, 1500);
-            } else {
-              console.error("Payment verification failed");
-              toast.error("Payment verification failed. Please contact support.");
+            })
+            .catch((err) => {
+              console.error("Error in payment success handler:", err);
+              toast.error("Payment processing error. Please contact support.");
               setLoading(false);
-            }
-          } else {
-            console.log("Payment not successful:", response);
-            toast.error("Payment was not successful. Please try again.");
-            setLoading(false);
-          }
-        } catch (err) {
-          console.error("Error in payment success handler:", err);
-          toast.error("Payment processing error. Please contact support.");
+            });
+        } else {
+          console.log("Payment not successful:", response);
+          toast.error("Payment was not successful. Please try again.");
           setLoading(false);
         }
       };
 
-      const handlePaymentClose = () => {
+      const paymentCloseCallback = () => {
         console.log("Payment popup closed by user");
         setLoading(false);
         PaymentService.showCancelMessage();
@@ -132,15 +136,23 @@ export const usePaystack = (user: any, session: any) => {
         ref: reference
       });
       
-      const handler = window.PaystackPop.setup({
+      // Ensure all required fields are present and valid
+      const config = {
         key: PAYSTACK_PUBLIC_KEY,
         email: user.email || '',
         amount: plan.amount,
         currency: 'NGN',
         ref: reference,
-        callback: handlePaymentSuccess,
-        onClose: handlePaymentClose
-      });
+        callback: paymentSuccessCallback,
+        onClose: paymentCloseCallback
+      };
+      
+      // Validate config before passing to Paystack
+      if (!config.key || !config.email || !config.amount || typeof config.callback !== 'function') {
+        throw new Error('Invalid payment configuration');
+      }
+      
+      const handler = window.PaystackPop.setup(config);
       
       if (!handler || typeof handler.openIframe !== 'function') {
         throw new Error('Failed to create payment handler');
