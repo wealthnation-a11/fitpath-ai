@@ -1,16 +1,39 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout/Layout";
 import { useAuth } from "@/context/AuthContext";
 import { ArrowRight, Check, Brain, Dumbbell, Calendar } from "lucide-react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { useEffect, useState } from "react";
+
+// Local subscription plans data to avoid PaymentContext dependency
+const SUBSCRIPTION_PLANS = [
+  {
+    id: "free-trial",
+    name: "3-Day Free Trial",
+    baseAmount: 0,
+  },
+  {
+    id: "monthly",
+    name: "Monthly Plan",
+    baseAmount: 2500, // 25 NGN in kobo
+  },
+  {
+    id: "semi-annual",
+    name: "6-Month Plan", 
+    baseAmount: 12000, // 120 NGN in kobo
+  },
+  {
+    id: "annual",
+    name: "Annual Plan",
+    baseAmount: 20000, // 200 NGN in kobo
+  },
+];
+
+// Local price formatter
+const formatPrice = (amount: number): string => {
+  return `₦${(amount / 100).toFixed(0)}`;
+};
 
 const Home = () => {
   const navigate = useNavigate();
@@ -71,6 +94,7 @@ const Home = () => {
 
   return (
     <Layout>
+      {/* Hero Section */}
       <section className="py-20 bg-gradient-to-br from-white to-fitpath-gray rounded-2xl mb-12">
         <div className="container px-4 mx-auto">
           <div className="flex flex-col md:flex-row items-center">
@@ -121,6 +145,7 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Features Section */}
       <section className="py-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12">Key Features</h2>
@@ -139,6 +164,75 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Pricing Section */}
+      <section className="py-12 bg-gray-50 rounded-2xl">
+        <div className="container px-4 mx-auto">
+          <h2 className="text-3xl font-bold text-center mb-4">Simple Pricing</h2>
+          <p className="text-xl text-gray-600 text-center mb-12">
+            Choose the plan that works best for you
+          </p>
+          <div className="grid md:grid-cols-4 gap-8">
+            {SUBSCRIPTION_PLANS.map((plan) => (
+              <div
+                key={plan.id}
+                className={`bg-white p-8 rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 ${
+                  plan.id === "monthly" ? "border-2 border-fitpath-blue" : ""
+                }`}
+              >
+                {plan.id === "monthly" && (
+                  <div className="bg-fitpath-blue text-white text-xs font-bold px-3 py-1 rounded-full uppercase mb-4 mx-auto w-fit">
+                    Most Popular
+                  </div>
+                )}
+                <h3 className="text-xl font-semibold text-center mb-2">{plan.name}</h3>
+                <div className="text-center mb-4">
+                  <span className="text-3xl font-bold">
+                    {plan.baseAmount === 0 ? "Free" : formatPrice(plan.baseAmount)}
+                  </span>
+                  {plan.baseAmount > 0 && (
+                    <span className="text-gray-600"> / {plan.id === "monthly" ? "month" : plan.id}</span>
+                  )}
+                </div>
+                <ul className="space-y-2 mb-8">
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Personalized Fitness Plans</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Customized Meal Plans</span>
+                  </li>
+                  <li className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-2" />
+                    <span>Plan History & Download</span>
+                  </li>
+                  {plan.id !== "free-trial" && (
+                    <li className="flex items-center">
+                      <Check className="h-5 w-5 text-green-500 mr-2" />
+                      <span>Priority Support</span>
+                    </li>
+                  )}
+                </ul>
+                <Button
+                  className={`w-full ${
+                    plan.id === "free-trial"
+                      ? "bg-gray-100 hover:bg-gray-200 text-gray-800"
+                      : plan.id === "monthly"
+                      ? "bg-fitpath-blue hover:bg-blue-600 text-white"
+                      : ""
+                  }`}
+                  variant={plan.id === "free-trial" ? "outline" : "default"}
+                  onClick={() => navigate("/plans")}
+                >
+                  {plan.id === "free-trial" ? "Start Free Trial" : "Choose Plan"}
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
       <section className="py-16 bg-white rounded-2xl my-12">
         <div className="container px-4 mx-auto">
           <h2 className="text-3xl font-bold text-center mb-4">What Our Users Are Saying</h2>
@@ -147,20 +241,18 @@ const Home = () => {
           </p>
           
           <div className="relative px-12 max-w-4xl mx-auto">
-            <Carousel className="w-full" setActiveItem={setActiveIndex} opts={{ loop: true, align: "center" }}>
-              <CarouselContent>
+            <div className="w-full">
+              <div className="flex transition-transform duration-300 ease-in-out" style={{ transform: `translateX(-${activeIndex * 100}%)` }}>
                 {testimonials.map((testimonial, index) => (
-                  <CarouselItem key={index}>
+                  <div key={index} className="w-full flex-shrink-0 px-4">
                     <div className="bg-fitpath-gray p-8 rounded-2xl shadow-soft transition-all duration-300 hover:shadow-hover text-center min-h-[200px] flex flex-col justify-center">
                       <p className="text-lg italic mb-6">"{testimonial.text}"</p>
                       <h3 className="font-semibold text-fitpath-blue">{testimonial.name}</h3>
                     </div>
-                  </CarouselItem>
+                  </div>
                 ))}
-              </CarouselContent>
-              <CarouselPrevious className="left-0" />
-              <CarouselNext className="right-0" />
-            </Carousel>
+              </div>
+            </div>
             
             <div className="flex justify-center mt-6 space-x-2">
               {testimonials.map((_, index) => (
@@ -180,6 +272,7 @@ const Home = () => {
         </div>
       </section>
 
+      {/* CTA Section */}
       <section className="py-20 mt-12">
         <div className="container px-4 mx-auto text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">
