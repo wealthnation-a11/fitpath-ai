@@ -113,7 +113,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setError(null);
   };
 
-  // Upgrade user workflow
   const upgradeUser = async (plan: SubscriptionPlan, reference: string) => {
     if (!user || !session) {
       throw new Error("User not authenticated");
@@ -123,7 +122,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + plan.duration);
 
-      // Update user record in database
       const { error: updateError } = await supabase
         .from('subscribers')
         .upsert({
@@ -144,7 +142,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw updateError;
       }
 
-      // Update local state
       const newSubscription: SubscriptionStatus = {
         active: true,
         plan,
@@ -152,8 +149,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       };
       
       setSubscription(newSubscription);
-      
-      // Show success toast
       toast.success("🎉 Upgrade successful! Welcome to premium.");
       
       console.log("User upgraded successfully:", {
@@ -168,7 +163,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Show cancel message workflow
   const showCancelMessage = () => {
     toast.error("❌ Payment was cancelled. Try again anytime.");
     console.log("Payment cancelled by user");
@@ -207,7 +201,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         throw new Error("Payment system not configured. Please contact support.");
       }
       
-      // Validate public key format
       if (!PAYSTACK_PUBLIC_KEY.startsWith('pk_')) {
         throw new Error("Invalid Paystack public key format");
       }
@@ -216,7 +209,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       if (typeof window.PaystackPop === 'undefined') {
         console.log("Loading Paystack script...");
         
-        // Remove any existing script first
         const existingScript = document.querySelector('script[src*="paystack"]');
         if (existingScript) {
           existingScript.remove();
@@ -238,7 +230,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
             reject(err);
           };
           
-          // Timeout after 10 seconds
           setTimeout(() => {
             reject(new Error('Paystack script loading timeout'));
           }, 10000);
@@ -252,8 +243,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
       const reference = `fitpath_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
       console.log("Generated payment reference:", reference);
       
-      // Payment success callback
-      const handlePaymentSuccess = function(response: any) {
+      const handlePaymentSuccess = (response: any) => {
         console.log("Payment callback received:", response);
         
         if (response.status === 'success' && response.reference) {
@@ -264,7 +254,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
               upgradeUser(plan, response.reference).then(() => {
                 setLoading(false);
                 
-                // Reload page after successful upgrade
                 setTimeout(() => {
                   window.location.reload();
                 }, 1500);
@@ -289,8 +278,7 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         }
       };
 
-      // Payment close callback
-      const handlePaymentClose = function() {
+      const handlePaymentClose = () => {
         console.log("Payment popup closed by user, running showCancelMessage workflow");
         setLoading(false);
         showCancelMessage();
@@ -361,7 +349,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
     
     try {
-      // Check Supabase subscribers table first
       const { data: subscriber, error } = await supabase
         .from('subscribers')
         .select('*')
@@ -391,7 +378,6 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         }
       }
 
-      // Fallback to localStorage for trial and legacy data
       const storedSubscription = localStorage.getItem(`fitpath-subscription-${user.id}`);
       
       if (storedSubscription) {
@@ -419,7 +405,9 @@ export const PaymentProvider = ({ children }: { children: ReactNode }) => {
         return parsedSubscription;
       }
       
-      return { active: false };
+      const defaultSubscription = { active: false };
+      setSubscription(defaultSubscription);
+      return defaultSubscription;
     } catch (err: any) {
       console.error("Error checking subscription:", err);
       setError(err.message);

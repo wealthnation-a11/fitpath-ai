@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -324,15 +323,28 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
-      const loadedPlans: Plan[] = data?.map(dbPlan => ({
-        id: dbPlan.id,
-        name: dbPlan.plan_name,
-        duration: dbPlan.duration,
-        planType: dbPlan.plan_type as 'free' | 'paid',
-        createdAt: dbPlan.created_at || new Date().toISOString(),
-        workouts: JSON.parse(dbPlan.progress_data || '{}').workouts || [],
-        meals: JSON.parse(dbPlan.progress_data || '{}').meals || []
-      })) || [];
+      const loadedPlans: Plan[] = data?.map(dbPlan => {
+        // Safely parse progress_data
+        let progressData: any = {};
+        try {
+          progressData = typeof dbPlan.progress_data === 'string' 
+            ? JSON.parse(dbPlan.progress_data) 
+            : dbPlan.progress_data || {};
+        } catch (e) {
+          console.error('Error parsing progress_data:', e);
+          progressData = {};
+        }
+
+        return {
+          id: dbPlan.id,
+          name: dbPlan.plan_name,
+          duration: dbPlan.duration as 30 | 180 | 365 | 7, // Type assertion for valid durations
+          planType: (dbPlan.plan_type as 'free' | 'paid') || 'paid',
+          createdAt: dbPlan.created_at || new Date().toISOString(),
+          workouts: progressData.workouts || [],
+          meals: progressData.meals || []
+        };
+      }) || [];
 
       setPlans(loadedPlans);
     } catch (err: any) {
@@ -444,9 +456,10 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
       }
       
       const planName = planType === 'free' ? "3-Day Free Trial Plan" : `${duration}-Day Nigerian Fitness Plan`;
+      const planId = `plan-${Date.now()}`;
       
       const newPlan: Plan = {
-        id: `plan-${Date.now()}`,
+        id: planId,
         name: planName,
         duration: actualDuration as 30 | 180 | 365 | 7,
         planType,
@@ -455,12 +468,13 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
         meals
       };
 
-      // Save to Supabase
+      // Save to Supabase with correct field mapping
       const { error: dbError } = await supabase
         .from('user_plans')
         .insert({
           id: newPlan.id,
           user_id: user.id,
+          plan_id: newPlan.id, // Use plan_id as required by schema
           plan_name: newPlan.name,
           duration: newPlan.duration,
           plan_type: newPlan.planType,
@@ -491,6 +505,7 @@ export const PlanProvider = ({ children }: { children: ReactNode }) => {
         .upsert({
           id: plan.id,
           user_id: user.id,
+          plan_id: plan.id, // Use plan_id as required by schema
           plan_name: plan.name,
           duration: plan.duration,
           plan_type: plan.planType,
