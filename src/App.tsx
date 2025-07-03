@@ -21,6 +21,7 @@ import Plans from "./pages/Plans";
 import PlanDetail from "./pages/PlanDetail";
 import Contact from "./pages/Contact";
 import FAQ from "./pages/FAQ";
+import MealPlan from "./pages/MealPlan";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
                 } />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/faq" element={<FAQ />} />
+                <Route path="/meal-plan" element={<MealPlan />} />
                 
                 {/* Redirect /index to home */}
                 <Route path="/index" element={<Navigate to="/" replace />} />

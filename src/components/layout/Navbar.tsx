@@ -101,6 +101,16 @@ const Navbar = () => {
           >
             FAQ
           </Link>
+          <Link
+            to="/meal-plan"
+            className={`font-medium transition-colors ${
+              isActive("/meal-plan") 
+                ? "text-fitpath-blue" 
+                : "text-gray-600 hover:text-fitpath-blue"
+            }`}
+          >
+            Meal Plan
+          </Link>
 
           {user ? (
             <>
@@ -220,6 +230,15 @@ const Navbar = () => {
               onClick={() => setIsMenuOpen(false)}
             >
               FAQ
+            </Link>
+            <Link
+              to="/meal-plan"
+              className={`font-medium transition-colors ${
+                isActive("/meal-plan") ? "text-fitpath-blue" : "text-gray-600"
+              }`}
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Meal Plan
             </Link>
             {user ? (
               <>
